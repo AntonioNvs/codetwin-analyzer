@@ -1,4 +1,4 @@
-# TP: Análise de Code Clone - Type 1 & 2
+# CodeTwin Analyzer: Análise de Code Clone - Type 1 & 2
 
 ## Membros do grupo
 - Antônio Caetano Neves Neto
