@@ -1,6 +1,7 @@
 # CodeTwin Analyzer: Análise de Code Clone - Type 1 & 2
 
 ## Membros do grupo
+
 - Antônio Caetano Neves Neto
 - Bernardo Dutra Lemos
 - João Lucas Simões Moreira
@@ -18,3 +19,7 @@ Será apresentado as métricas de *code clones*, como número atual de cada tipo
 - [Github Search Tool (SEART)](https://seart-ghs.si.usi.ch): Filtra repositórios por critérios específicos (linguagem, estrelas, data) para criar um dataset qualificado.
 - [python-fire](https://github.com/google/python-fire): Transforma funções de análise em ferramentas de linha de comando para facilitar a execução de testes e automações.
 - [pmd](https://github.com/pmd/pmd): Atua como o motor de análise estática, utilizando seu módulo Copy-Paste Detector (CPD) para identificar as duplicatas de código.
+
+### Exemplo de Uso
+
+Configurar *GITHUB_TOKEN* em *.env*

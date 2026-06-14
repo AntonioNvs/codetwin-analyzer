@@ -2,8 +2,10 @@ import sys
 import logging
 import fire
 import requests
+
 from pathlib import Path
 from typing import Optional
+from dotenv import load_dotenv
 
 from codetwin_analyzer.utils import sanitize_repo_name, temp_dir
 from codetwin_analyzer.github_client import GitHubClient, GitHubAPIError
@@ -13,6 +15,8 @@ from codetwin_analyzer.parser import parse_cpd_xml, group_into_pairs
 from codetwin_analyzer.metrics import compute_clone_counts, most_cloned_files, clone_density
 
 logger = logging.getLogger("codetwin_analyzer")
+
+load_dotenv()
 
 def setup_logging(verbose: bool, quiet: bool):
     """Configura os handlers de log para o console e para o arquivo."""
@@ -112,16 +116,16 @@ class CodeTwinCLI:
                     logger.debug("Linguagem não fornecida. Iniciando autodetecção...")
                     cpd_runner.run_with_auto_detect(tmpdir, output_file, min_tokens)
 
-            logger.info("Processando o XML e calculando estatísticas...")
-            fragments = parse_cpd_xml(output_file)
-            
-            if not fragments:
-                logger.info("Nenhum clone encontrado! A base de código está limpa.")
-                return
+                logger.info("Processando o XML e calculando estatísticas...")
+                fragments = parse_cpd_xml(output_file)
+                
+                if not fragments:
+                    logger.info("Nenhum clone encontrado! A base de código está limpa.")
+                    return
 
-            pairs = group_into_pairs(fragments)
-            metrics = compute_clone_counts(pairs)
-            top_files = most_cloned_files(pairs, top_n=5)
+                pairs = group_into_pairs(fragments)
+                metrics = compute_clone_counts(pairs)
+                top_files = most_cloned_files(pairs, top_n=5)
 
             print("\n" + "="*40)
             print(" SUMÁRIO DE ANÁLISE")
@@ -158,6 +162,14 @@ class CodeTwinCLI:
             github_client = GitHubClient()
             cpd_runner = CPDRunner()
 
+            # Variáveis de controle para o relatório final
+            fragments = []
+            total_lines = 0
+            language = ""
+            counts = None
+            top_files = []
+            density = 0.0
+
             with temp_dir() as tmpdir:
                 logger.info(f"Baixando repositório {owner}/{repo}...")
                 github_client.download_repository(owner, repo, destination=tmpdir)
@@ -170,7 +182,6 @@ class CodeTwinCLI:
                 logger.info(f"Linguagem predominante identificada: {language.capitalize()}")
                 
                 logger.debug("Contando linhas físicas de código fonte...")
-                total_lines = 0
                 ext_mapping = {
                     "python": [".py"], "java": [".java"], "javascript": [".js", ".jsx"],
                     "typescript": [".ts", ".tsx"], "cs": [".cs"], "c": [".c", ".h"],
@@ -189,9 +200,19 @@ class CodeTwinCLI:
                 logger.info("Rodando motor de análise sintática...")
                 cpd_runner.run_cpd(tmpdir, output_file, min_tokens, language)
 
-            fragments = parse_cpd_xml(output_file)
-            
-            if not fragments:
+                logger.info("Processando o XML, lendo arquivos locais e calculando estatísticas...")
+                fragments = parse_cpd_xml(output_file)
+                
+                if fragments:
+                    pairs = group_into_pairs(fragments)
+                    # AGORA SIM: Roda a classificação abrindo os arquivos reais antes que o 'with' acabe!
+                    counts = compute_clone_counts(pairs)
+                    top_files = most_cloned_files(pairs, top_n=5)
+                    density = clone_density(pairs, total_lines)
+
+            # --- O bloco 'with' fecha aqui e limpa o /tmp ---
+
+            if not fragments or not counts:
                 print("\n" + "="*50)
                 print(" RELATÓRIO DE MÉTRICAS - CÓDIGO LIMPO")
                 print("="*50)
@@ -199,18 +220,13 @@ class CodeTwinCLI:
                 print(f"Densidade de Clones:       0.00%")
                 return
 
-            pairs = group_into_pairs(fragments)
-            counts = compute_clone_counts(pairs)
-            top_files = most_cloned_files(pairs, top_n=5)
-            density = clone_density(pairs, total_lines)
-
             print("\n" + "═"*50)
-            print(" PAINEL DE MÉTRICAS DE CLONES")
+            print(" PAINEL DE MÉTRICAS DE CLONES (VERIFICAÇÃO COMPLETA)")
             print("═"*50)
             print(f" Repositório:          {owner}/{repo}")
             print(f" Linguagem Base:       {language.capitalize()}")
             print(f" Total de Linhas (LOC): {total_lines}")
-            print("\n TIPOS DE CLONES")
+            print("\n TIPOS DE CLONES DETECTADOS")
             print(" ─"*24)
             print(f"  Total de Ocorrências:   {counts.total_clones}")
             print(f"  - Tipo 1 (Idênticos):  {counts.type1_count}")
@@ -278,7 +294,7 @@ class CodeTwinCLI:
 
 def main():
     """Ponto de entrada principal para a CLI."""
-    fire.Fire(CodeTwinCLI)  # type: ignore
+    fire.Fire(CodeTwinCLI)
 
 if __name__ == "__main__":
     main()

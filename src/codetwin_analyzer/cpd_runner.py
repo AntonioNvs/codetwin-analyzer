@@ -75,7 +75,7 @@ class CPDRunner:
         cmd = [
             self.pmd_path, "cpd",
             "--minimum-tokens", str(min_tokens),
-            "--files", str(source_dir),
+            "-d", str(source_dir),
             "--format", "xml"
         ]
         

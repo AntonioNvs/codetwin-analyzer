@@ -93,15 +93,29 @@ def group_into_pairs(fragments: List[CloneFragment]) -> List[ClonePair]:
 
 def classify_clone_type(pair: ClonePair) -> None:
     """
-    Analisa os snippets de um par e classifica o clone:
+    Analisa os arquivos físicos de um par de clones no disco e classifica:
     - Tipo 1: Código exato (ignorando espaços/quebras de linha).
     - Tipo 2: Estrutura idêntica, mas variáveis/literais diferentes.
     """
-    code_a = pair.fragment_a.code_snippet
-    code_b = pair.fragment_b.code_snippet
-    
+    def extract_code_from_file(file_path: str, begin_line: int, end_line: int) -> Optional[str]:
+        """Lê as linhas exatas de um arquivo no disco."""
+        try:
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                lines = f.readlines()
+                selected_lines = lines[begin_line - 1 : end_line]
+                return "".join(selected_lines)
+        except Exception:
+            return None
+
+    code_a = extract_code_from_file(pair.fragment_a.source_file, pair.fragment_a.begin_line, pair.fragment_a.end_line)
+    code_b = extract_code_from_file(pair.fragment_b.source_file, pair.fragment_b.begin_line, pair.fragment_b.end_line)
+
     if not code_a or not code_b:
-        pair.type = "Desconhecido"
+        code_a = pair.fragment_a.code_snippet or ""
+        code_b = pair.fragment_b.code_snippet or ""
+
+    if not code_a or not code_b:
+        pair.type = "Tipo 2"  # Fallback seguro
         return
 
     if code_a.strip() == code_b.strip():
