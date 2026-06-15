@@ -16,7 +16,7 @@ Trabalho prático de Manutenção e Evolução de Software. Desenvolvimento de f
 
 | Pessoa      | Tarefas     | %    | Linhas estimadas | Prazo            |
 | ----------- | ----------- | ---- | ---------------- | ---------------- |
-| Antônio    | 1–21 (21)  | ~40% | ~735             | 13/jun (amanhã) |
+| Antônio    | 1–21 (21)  | ~40% | ~735             | 14/jun (domingo) |
 | Bernardo    | 22–32 (11) | ~21% | ~715             | 16/jun (terça)  |
 | João Lucas | 33–42 (10) | ~19% | ~730             | 18/jun (quinta)  |
 | Raphael     | 43–52 (10) | ~19% | ~720             | 20/jun (sábado) |
