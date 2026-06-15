@@ -17,9 +17,9 @@ Trabalho prático de Manutenção e Evolução de Software. Desenvolvimento de f
 | Pessoa      | Tarefas     | %    | Linhas estimadas | Prazo            |
 | ----------- | ----------- | ---- | ---------------- | ---------------- |
 | Antônio    | 1–21 (21)  | ~40% | ~735             | 13/jun (amanhã) |
-| Bernardo    | 22–32 (11) | ~21% | ~715             | 16/jun (segunda) |
-| João Lucas | 33–42 (10) | ~19% | ~730             | 18/jun (quarta)  |
-| Raphael     | 43–52 (10) | ~19% | ~720             | 20/jun (sexta)   |
+| Bernardo    | 22–32 (11) | ~21% | ~715             | 16/jun (terça)  |
+| João Lucas | 33–42 (10) | ~19% | ~730             | 18/jun (quinta)  |
+| Raphael     | 43–52 (10) | ~19% | ~720             | 20/jun (sábado) |
 
 As fases são **sequenciais**: cada pessoa só começa quando a anterior terminar todas as suas tarefas.
 
@@ -243,14 +243,18 @@ codetwin-analyzer/
 
 **Arquivos:**
 
-- `tests/test_parser.py` — classe `TestParser`:
+- `tests/test_parser.py` — classe `TestParser` (9 testes implementados):
   - `test_parse_cpd_xml_valid` — verifica número correto de fragmentos
+  - `test_parse_cpd_xml_with_namespace` — **suporte a namespace do PMD 7.x** (`xmlns="https://pmd-code.org/schema/cpd-report"`)
   - `test_parse_cpd_xml_empty` — XML sem duplicações → lista vazia
   - `test_parse_cpd_xml_malformed` — XML inválido → `ParseError`
-  - `test_classify_type1` — código idêntico → Tipo 1
-  - `test_classify_type2_renamed_identifiers` — estrutura igual, nomes diferentes → Tipo 2
+  - `test_classify_type1` — código idêntico (arquivos reais em `tmp_path`) → Tipo 1
+  - `test_classify_type2_renamed_identifiers` — estrutura igual, nomes diferentes (arquivos reais) → Tipo 2
+  - `test_classify_with_unreadable_file` — arquivos inacessíveis → Tipo 3/4 (fallback conservador)
   - `test_group_into_pairs` — verifica agrupamento correto
-  - `test_type_statistics` — verifica contagem por tipo
+  - `test_type_statistics` — verifica contagem por tipo (Tipo 3/4 com arquivos reais)
+
+> ⚠️ **Atenção:** `classify_clone_type` agora lê arquivos reais do disco via `extract_code_from_file`. Testes que usam `CloneFragment` com paths fictícios sempre resultam em `"Tipo 3/4"`. SEMPRE use `tmp_path` e escreva arquivos reais ao testar classificação de clones.
 
 ---
 
@@ -268,6 +272,8 @@ codetwin-analyzer/
   - `test_get_default_branch` — mock response com `default_branch: "main"`
   - `test_get_repo_metadata_returns_expected_keys` — verifica campos do dict
   - `test_download_repository` — mock ZIP download, verifica extração
+
+> ℹ️ A fixture `mock_github_session` (monkeypatch de `requests.Session.get`) já existe em `conftest.py`. Reutilize-a nos testes.
 
 ### 23. `test: implementa testes unitarios para seart_client`
 
@@ -306,6 +312,8 @@ codetwin-analyzer/
   - `test_clone_density` — cálculo correto da densidade
   - `test_empty_input_handling` — listas vazias não quebram
 
+> ⚠️ `compute_clone_counts` chama `classify_clone_type` que exige **arquivos reais em disco**. Para testar contagem de Tipo 1 e Tipo 2, crie arquivos em `tmp_path` com os snippets corretos e aponte os `CloneFragment.source_file` para esses paths. Paths fictícios sempre resultam em `"Tipo 3/4"`.
+
 ### 26. `feat: adiciona estatisticas sumarias ao modulo metrics`
 
 **Arquivos:**
@@ -321,6 +329,8 @@ codetwin-analyzer/
   - `inter_file_similarity(clone_pairs)` — para cada par de arquivos, score: `(2 * duplicated_lines) / (total_A + total_B)`
   - `token_overlap_matrix(clone_pairs)` — similaridade Jaccard entre conjuntos de tokens
   - `repository_clone_index(clone_pairs, total_files, total_lines)` — índice único (0 a 1)
+
+> 📝 **Escopo opcional:** Tasks 26–30 são métricas avançadas que estendem o que `most_cloned_files` e `clone_density` já cobrem. Se o prazo apertar, podem ser adiadas sem quebrar a CLI.
 
 ### 28. `test: implementa testes para metricas avancadas`
 
@@ -361,6 +371,8 @@ codetwin-analyzer/
   - `ubuntu-latest`, Python 3.10
   - Steps: checkout, setup-python, `pip install -r requirements.txt && pip install -e . && pip install pytest flake8`, `flake8 src/`, `pytest tests/ -v --tb=short`
   - Triggers: `push` e `pull_request` para `main`
+
+> ℹ️ O PMD **não** precisa ser instalado no ambiente de CI. Os testes de `cpd_runner` mockam `subprocess.run` e os demais módulos (`parser`, `metrics`, `utils`) não dependem do PMD.
 
 ### 32. `test: implementa testes de integracao para a CLI`
 

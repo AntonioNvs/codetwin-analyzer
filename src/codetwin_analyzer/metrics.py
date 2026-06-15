@@ -15,89 +15,101 @@ class CloneMetrics:
     total_files_affected: int
     total_lines_duplicated: int
 
+def _unique_fragment_lines(clone_pairs: List[ClonePair]) -> int:
+    """Soma as linhas dos fragmentos únicos para evitar double-counting
+    quando um mesmo fragmento aparece em múltiplos pares (grupos com N > 2)."""
+    seen = set()
+    total = 0
+    for pair in clone_pairs:
+        for frag in (pair.fragment_a, pair.fragment_b):
+            key = (frag.source_file, frag.begin_line, frag.end_line)
+            if key not in seen:
+                seen.add(key)
+                total += (frag.end_line - frag.begin_line) + 1
+    return total
+
+
 def compute_clone_counts(clone_pairs: List[ClonePair]) -> CloneMetrics:
     """
-    Itera sobre os pares de clones, classifica cada um deles e 
+    Itera sobre os pares de clones, classifica cada um deles e
     acumula as métricas gerais do repositório.
     """
     type1_count = 0
     type2_count = 0
     unique_files = set()
-    total_lines_duplicated = 0
-    
+
     for pair in clone_pairs:
         if not pair.type:
             classify_clone_type(pair)
-            
+
         if pair.type == "Tipo 1":
             type1_count += 1
         elif pair.type == "Tipo 2":
             type2_count += 1
-            
+
         unique_files.add(pair.fragment_a.source_file)
         unique_files.add(pair.fragment_b.source_file)
-        
-        # Calcula a quantidade de linhas duplicadas no par
-        # O +1 garante que contar da linha 10 à 15 resulte em 6 linhas (10,11,12,13,14,15)
-        lines_a = (pair.fragment_a.end_line - pair.fragment_a.begin_line) + 1
-        lines_b = (pair.fragment_b.end_line - pair.fragment_b.begin_line) + 1
-        
-        # Acumula o total (soma o tamanho do trecho A e do trecho B)
-        total_lines_duplicated += (lines_a + lines_b)
-        
+
+    total_lines_duplicated = _unique_fragment_lines(clone_pairs)
+
     return CloneMetrics(
         total_clones=len(clone_pairs),
         type1_count=type1_count,
         type2_count=type2_count,
         total_files_affected=len(unique_files),
-        total_lines_duplicated=total_lines_duplicated
+        total_lines_duplicated=total_lines_duplicated,
     )
 
 def most_cloned_files(clone_pairs: List[ClonePair], top_n: int = 10) -> List[Tuple[str, int]]:
     """
-    Conta a frequência de aparição de cada arquivo nos pares de clones
-    e retorna os Top N arquivos mais clonados.
+    Conta quantos blocos clonados únicos cada arquivo possui.
+    Deduplica por (source_file, begin_line, end_line) para evitar
+    inflação quando um fragmento aparece em múltiplos pares do mesmo grupo.
     """
     file_counter = Counter()
-    
+    seen = set()
+
     for pair in clone_pairs:
-        file_counter[pair.fragment_a.source_file] += 1
-        file_counter[pair.fragment_b.source_file] += 1
-        
+        for frag in (pair.fragment_a, pair.fragment_b):
+            key = (frag.source_file, frag.begin_line, frag.end_line)
+            if key not in seen:
+                seen.add(key)
+                file_counter[frag.source_file] += 1
+
     return file_counter.most_common(top_n)
 
 def most_cloned_functions(clone_pairs: List[ClonePair], top_n: int = 10) -> List[Tuple[str, int]]:
     """
     Busca assinaturas de funções (Python, JS, TS, PHP, etc.) dentro dos
     snippets clonados usando Regex e retorna as Top N funções mais clonadas.
+    Deduplica fragmentos por (source_file, begin_line, end_line).
     """
     function_counter = Counter()
-    
-    # Regex que captura: 'def nome_funcao' (ex: Python) ou 'function nome_funcao' (ex: JS)
     func_pattern = re.compile(r"def\s+(\w+)|function\s+(\w+)")
-    
+    seen_frags = set()
+
     for pair in clone_pairs:
         for fragment in (pair.fragment_a, pair.fragment_b):
+            frag_key = (fragment.source_file, fragment.begin_line, fragment.end_line)
+            if frag_key in seen_frags:
+                continue
+            seen_frags.add(frag_key)
+
             match = func_pattern.search(fragment.code_snippet)
             if match:
                 func_name = match.group(1) or match.group(2)
                 if func_name:
                     function_counter[func_name] += 1
-                    
+
     return function_counter.most_common(top_n)
 
 def clone_density(clone_pairs: List[ClonePair], total_lines: int) -> float:
     """
-    Calcula a razão (densidade) entre as linhas duplicadas e o total 
+    Calcula a razão (densidade) entre as linhas duplicadas e o total
     de linhas do repositório/projeto analisado.
     """
     if total_lines <= 0:
         return 0.0
-        
-    duplicated_lines = 0
-    for pair in clone_pairs:
-        lines_a = (pair.fragment_a.end_line - pair.fragment_a.begin_line) + 1
-        lines_b = (pair.fragment_b.end_line - pair.fragment_b.begin_line) + 1
-        duplicated_lines += (lines_a + lines_b)
-        
+
+    duplicated_lines = _unique_fragment_lines(clone_pairs)
     return duplicated_lines / total_lines

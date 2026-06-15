@@ -15,6 +15,7 @@ class CloneFragment:
     end_line: int
     tokens: int
     code_snippet: str
+    duplication_id: int = 0
 
 @dataclass
 class ClonePair:
@@ -25,58 +26,71 @@ class ClonePair:
     type: Optional[str] = None
 
 
+def _extract_namespace(root_tag: str) -> str:
+    """Extrai o namespace do elemento raiz para buscas com findall."""
+    if "}" in root_tag:
+        return root_tag.split("}")[0].strip("{")
+    return ""
+
+
 def parse_cpd_xml(file_path: Union[str, Path]) -> List[CloneFragment]:
     """
     Lê o arquivo XML gerado pelo PMD CPD, extrai os elementos <duplication>
     e retorna uma lista achatada de CloneFragments.
+    Suporta XML com e sem namespace (PMD 6.x e 7.x).
     """
     fragments = []
-    
+
     tree = ET.parse(file_path)
     root = tree.getroot()
-    
-    for duplication in root.findall("duplication"):
+
+    ns = _extract_namespace(root.tag)
+    tag = lambda name: f"{{{ns}}}{name}" if ns else name
+
+    for dup_id, duplication in enumerate(root.findall(tag("duplication"))):
         tokens = int(duplication.get("tokens", 0))
-        
-        codefragment_node = duplication.find("codefragment")
+
+        codefragment_node = duplication.find(tag("codefragment"))
         code_snippet = ""
         if codefragment_node is not None and codefragment_node.text:
             code_snippet = codefragment_node.text.strip()
-            
-        for file_node in duplication.findall("file"):
+
+        for file_node in duplication.findall(tag("file")):
             source_file = file_node.get("path", "")
             begin_line = int(file_node.get("line", 0))
-            
+
             end_line_str = file_node.get("endline")
             if end_line_str:
                 end_line = int(end_line_str)
             else:
                 lines = int(duplication.get("lines", 0))
                 end_line = begin_line + lines - 1 if lines > 0 else begin_line
-            
+
             fragments.append(
                 CloneFragment(
                     source_file=source_file,
                     begin_line=begin_line,
                     end_line=end_line,
                     tokens=tokens,
-                    code_snippet=code_snippet
+                    code_snippet=code_snippet,
+                    duplication_id=dup_id,
                 )
             )
-            
+
     return fragments
 
 
 def group_into_pairs(fragments: List[CloneFragment]) -> List[ClonePair]:
     """
     Recebe a lista achatada de fragmentos e os agrupa em pares (ClonePair).
-    Usa a combinação de (tokens, code_snippet) para identificar quais
-    fragmentos pertencem ao mesmo grupo de duplicação do XML.
+    Agrupa por duplication_id, que preserva o agrupamento original de cada
+    elemento <duplication> do XML — evitando que duplicações independentes
+    com o mesmo snippet sejam mescladas indevidamente.
     """
     groups = defaultdict(list)
     for frag in fragments:
-        groups[(frag.tokens, frag.code_snippet)].append(frag)
-        
+        groups[frag.duplication_id].append(frag)
+
     pairs = []
     for group in groups.values():
         for frag_a, frag_b in combinations(group, 2):
@@ -84,10 +98,10 @@ def group_into_pairs(fragments: List[CloneFragment]) -> List[ClonePair]:
                 ClonePair(
                     fragment_a=frag_a,
                     fragment_b=frag_b,
-                    shared_tokens=frag_a.tokens
+                    shared_tokens=frag_a.tokens,
                 )
             )
-            
+
     return pairs
 
 
@@ -111,11 +125,7 @@ def classify_clone_type(pair: ClonePair) -> None:
     code_b = extract_code_from_file(pair.fragment_b.source_file, pair.fragment_b.begin_line, pair.fragment_b.end_line)
 
     if not code_a or not code_b:
-        code_a = pair.fragment_a.code_snippet or ""
-        code_b = pair.fragment_b.code_snippet or ""
-
-    if not code_a or not code_b:
-        pair.type = "Tipo 2"  # Fallback seguro
+        pair.type = "Tipo 3/4"
         return
 
     if code_a.strip() == code_b.strip():

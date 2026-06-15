@@ -18,14 +18,14 @@ def sample_cpd_xml(tmp_path):
     print("Hello")
     return True]]></codefragment>
     </duplication>
-    
+
     <duplication lines="15" tokens="150">
         <file line="20" path="/src/utils/math.py" endline="34"/>
         <file line="50" path="/src/utils/calc.py" endline="64"/>
         <codefragment><![CDATA[def add(a, b):
     return a + b]]></codefragment>
     </duplication>
-    
+
     <duplication lines="8" tokens="110">
         <file line="10" path="/src/core/engine.py" endline="17"/>
         <file line="30" path="/src/core/engine_v2.py" endline="37"/>
@@ -41,30 +41,67 @@ def sample_cpd_xml(tmp_path):
 
 
 @pytest.fixture
+def sample_cpd_xml_namespaced(tmp_path):
+    """
+    Cria um XML no formato do PMD 7.x (com namespace default).
+    """
+    xml_content = """<?xml version="1.0" encoding="UTF-8"?>
+<pmd-cpd xmlns="https://pmd-code.org/schema/cpd-report"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         pmdVersion="7.25.0"
+         version="1.0.0">
+    <duplication lines="10" tokens="120">
+        <file line="5" path="/src/app/main.py" endline="14"/>
+        <file line="15" path="/src/app/backup.py" endline="24"/>
+        <codefragment><![CDATA[def hello_world():
+    print("Hello")
+    return True]]></codefragment>
+    </duplication>
+
+    <duplication lines="15" tokens="150">
+        <file line="20" path="/src/utils/math.py" endline="34"/>
+        <file line="50" path="/src/utils/calc.py" endline="64"/>
+        <codefragment><![CDATA[def add(a, b):
+    return a + b]]></codefragment>
+    </duplication>
+</pmd-cpd>
+"""
+    xml_file = tmp_path / "sample_cpd_ns.xml"
+    xml_file.write_text(xml_content, encoding="utf-8")
+    return xml_file
+
+
+@pytest.fixture
 def sample_clone_fragments():
-    """Retorna uma lista padronizada de fragmentos para testes unitários."""
+    """Retorna uma lista padronizada de fragmentos para testes unitários.
+    Fragmentos 0 e 1 pertencem à mesma duplicação (duplication_id=0).
+    Fragmento 2 pertence a outra duplicação (duplication_id=1).
+    """
     return [
         CloneFragment(
-            source_file="auth.py", 
-            begin_line=10, 
-            end_line=20, 
-            tokens=105, 
-            code_snippet="def login(user, psw):\n    return verify(user, psw)"
+            source_file="auth.py",
+            begin_line=10,
+            end_line=20,
+            tokens=105,
+            code_snippet="def login(user, psw):\n    return verify(user, psw)",
+            duplication_id=0,
         ),
         CloneFragment(
-            source_file="auth_backup.py", 
-            begin_line=15, 
-            end_line=25, 
-            tokens=105, 
-            code_snippet="def login(user, psw):\n    return verify(user, psw)"
+            source_file="auth_backup.py",
+            begin_line=15,
+            end_line=25,
+            tokens=105,
+            code_snippet="def login(user, psw):\n    return verify(user, psw)",
+            duplication_id=0,
         ),
         CloneFragment(
-            source_file="auth_v2.py", 
-            begin_line=5, 
-            end_line=15, 
-            tokens=105, 
-            code_snippet="def login(u, p):\n    return verify(u, p)"
-        )
+            source_file="auth_v2.py",
+            begin_line=5,
+            end_line=15,
+            tokens=105,
+            code_snippet="def login(u, p):\n    return verify(u, p)",
+            duplication_id=1,
+        ),
     ]
 
 
