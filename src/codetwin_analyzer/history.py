@@ -102,3 +102,75 @@ class CloneHistory:
         total = len(pairs)
 
         return {"type1_count": type1, "type2_count": type2, "total_clones": total}
+
+    def track_commit_range(
+        self,
+        owner: str,
+        repo: str,
+        since: Optional[str] = None,
+        until: Optional[str] = None,
+        max_commits: int = 50,
+        min_tokens: int = 100,
+    ) -> List[HistoryEntry]:
+        """
+        Rastreia clones de código em um intervalo de commits do repositório.
+
+        Para cada commit no intervalo: baixa o repositório, executa o CPD e
+        armazena um HistoryEntry. Commits sem arquivos analisáveis recebem
+        contagem zero e são pulados com aviso de log.
+
+        Args:
+            owner: Proprietário do repositório no GitHub.
+            repo: Nome do repositório.
+            since: Data ISO 8601 de início do intervalo (opcional).
+            until: Data ISO 8601 de fim do intervalo (opcional).
+            max_commits: Número máximo de commits a analisar.
+            min_tokens: Número mínimo de tokens para o CPD.
+
+        Returns:
+            Lista de HistoryEntry gerada nesta chamada.
+        """
+        commits = self.github_client.get_commits(owner, repo, since=since, until=until)
+        commits = commits[:max_commits]
+
+        if not commits:
+            logger.info(f"Nenhum commit encontrado para {owner}/{repo} no intervalo especificado.")
+            return []
+
+        logger.info(f"Analisando {len(commits)} commit(s) de {owner}/{repo}...")
+
+        new_entries: List[HistoryEntry] = []
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            for idx, commit in enumerate(commits, start=1):
+                sha = commit.get("sha", "")
+                timestamp = commit.get("date", "")
+                branch = commit.get("branch", "default")
+
+                logger.info(f"[{idx}/{len(commits)}] Commit {sha[:8]} ({timestamp})")
+
+                try:
+                    counts = self._run_cpd_on_commit(
+                        owner, repo, sha, temp_dir, min_tokens=min_tokens
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"Erro inesperado ao processar commit {sha[:8]}: {e}. "
+                        "Registrando zero clones."
+                    )
+                    counts = {"type1_count": 0, "type2_count": 0, "total_clones": 0}
+
+                entry = HistoryEntry(
+                    commit_sha=sha,
+                    timestamp=timestamp,
+                    branch=branch,
+                    type1_count=counts["type1_count"],
+                    type2_count=counts["type2_count"],
+                    total_clones=counts["total_clones"],
+                )
+
+                self.entries.append(entry)
+                new_entries.append(entry)
+
+        logger.info(f"Rastreamento concluído. {len(new_entries)} entrada(s) registrada(s).")
+        return new_entries
