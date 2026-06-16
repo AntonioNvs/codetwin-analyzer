@@ -1,6 +1,7 @@
 import re
+import statistics
 
-from typing import List, Tuple
+from typing import List, Tuple, Dict, Any
 from collections import Counter
 from dataclasses import dataclass
 
@@ -113,3 +114,55 @@ def clone_density(clone_pairs: List[ClonePair], total_lines: int) -> float:
 
     duplicated_lines = _unique_fragment_lines(clone_pairs)
     return duplicated_lines / total_lines
+
+
+def statistical_summary(clone_pairs: List[ClonePair]) -> Dict[str, Any]:
+    """
+    Calcula estatísticas descritivas dos tamanhos (em linhas) dos clones detectados.
+    Retorna um dicionário com média, mediana, desvio padrão, mínimo, máximo,
+    total de arquivos únicos e razões por tipo.
+    Trata lista vazia retornando zeros em todos os campos numéricos.
+    """
+    _EMPTY: Dict[str, Any] = {
+        "mean_clone_size": 0.0,
+        "median_clone_size": 0.0,
+        "stddev_clone_size": 0.0,
+        "min_clone_size": 0,
+        "max_clone_size": 0,
+        "total_unique_files": 0,
+        "type1_ratio": 0.0,
+        "type2_ratio": 0.0,
+    }
+
+    if not clone_pairs:
+        return _EMPTY
+
+    sizes: List[int] = []
+    unique_files: set = set()
+    type1_count = 0
+    type2_count = 0
+
+    for pair in clone_pairs:
+        for frag in (pair.fragment_a, pair.fragment_b):
+            sizes.append((frag.end_line - frag.begin_line) + 1)
+            unique_files.add(frag.source_file)
+
+        clone_type = pair.type or ""
+        if clone_type == "Tipo 1":
+            type1_count += 1
+        elif clone_type == "Tipo 2":
+            type2_count += 1
+
+    total = len(clone_pairs)
+    stddev = statistics.stdev(sizes) if len(sizes) > 1 else 0.0
+
+    return {
+        "mean_clone_size": statistics.mean(sizes),
+        "median_clone_size": statistics.median(sizes),
+        "stddev_clone_size": stddev,
+        "min_clone_size": min(sizes),
+        "max_clone_size": max(sizes),
+        "total_unique_files": len(unique_files),
+        "type1_ratio": type1_count / total,
+        "type2_ratio": type2_count / total,
+    }
