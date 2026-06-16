@@ -12,6 +12,9 @@ from codetwin_analyzer.metrics import (
     inter_file_similarity,
     token_overlap_matrix,
     repository_clone_index,
+    file_level_clone_matrix,
+    clone_coverage_per_file,
+    top_clone_files_by_type,
 )
 
 
@@ -273,3 +276,92 @@ class TestMetrics:
         assert "p.py" in result
         assert "q.py" in result["p.py"]
         assert abs(result["p.py"]["q.py"] - 0.5) < 1e-9
+
+    def test_file_level_clone_matrix(self) -> None:
+        """file_level_clone_matrix constrói nested dict simétrico com contagens corretas."""
+        pairs = [
+            ClonePair(
+                fragment_a=CloneFragment("a.py", 1, 5, 100, "code"),
+                fragment_b=CloneFragment("b.py", 1, 5, 100, "code"),
+                shared_tokens=100,
+            ),
+            ClonePair(
+                fragment_a=CloneFragment("a.py", 10, 15, 100, "code"),
+                fragment_b=CloneFragment("b.py", 10, 15, 100, "code"),
+                shared_tokens=100,
+            ),
+        ]
+
+        matrix = file_level_clone_matrix(pairs)
+
+        assert "a.py" in matrix
+        assert "b.py" in matrix
+        assert matrix["a.py"]["b.py"] == 2
+        assert matrix["b.py"]["a.py"] == 2
+
+    def test_clone_coverage_per_file(self) -> None:
+        """clone_coverage_per_file calcula porcentagem correta de linhas duplicadas."""
+        # frag_a cobre linhas 1-5 num arquivo cujo max end_line é 5 → 100%
+        # frag_b cobre linhas 1-5 num arquivo cujo max end_line é 10 → 50%
+        pair = ClonePair(
+            fragment_a=CloneFragment("full.py", 1, 5, 100, "code"),
+            fragment_b=CloneFragment("half.py", 1, 5, 100, "code"),
+            shared_tokens=100,
+        )
+        pair2 = ClonePair(
+            fragment_a=CloneFragment("full.py", 1, 5, 100, "code"),
+            fragment_b=CloneFragment("half.py", 6, 10, 100, "code"),
+            shared_tokens=100,
+        )
+
+        result = clone_coverage_per_file([pair, pair2])
+
+        assert abs(result["full.py"] - 100.0) < 1e-9
+        assert abs(result["half.py"] - 100.0) < 1e-9
+
+    def test_top_clone_files_by_type(self) -> None:
+        """top_clone_files_by_type retorna rankings separados por Tipo 1 e Tipo 2."""
+        pairs = [
+            ClonePair(
+                fragment_a=CloneFragment("a.py", 1, 5, 100, "code"),
+                fragment_b=CloneFragment("b.py", 1, 5, 100, "code"),
+                shared_tokens=100,
+                type="Tipo 1",
+            ),
+            ClonePair(
+                fragment_a=CloneFragment("a.py", 10, 15, 100, "code"),
+                fragment_b=CloneFragment("c.py", 10, 15, 100, "code"),
+                shared_tokens=100,
+                type="Tipo 1",
+            ),
+            ClonePair(
+                fragment_a=CloneFragment("d.py", 1, 5, 100, "code"),
+                fragment_b=CloneFragment("e.py", 1, 5, 100, "code"),
+                shared_tokens=100,
+                type="Tipo 2",
+            ),
+        ]
+
+        result = top_clone_files_by_type(pairs)
+
+        type1_files = [name for name, _ in result["Tipo 1"]]
+        type2_files = [name for name, _ in result["Tipo 2"]]
+
+        # a.py aparece em 2 pares Tipo 1 → deve ser o primeiro
+        assert type1_files[0] == "a.py"
+        assert "d.py" in type2_files or "e.py" in type2_files
+        # nenhum arquivo Tipo 2 deve aparecer no ranking Tipo 1
+        assert "d.py" not in type1_files
+
+    def test_clone_coverage_boundary(self) -> None:
+        """clone_coverage_per_file retorna 0% para lista vazia e 100% para cobertura total."""
+        assert clone_coverage_per_file([]) == {}
+
+        pair = ClonePair(
+            fragment_a=CloneFragment("x.py", 1, 1, 50, "x = 1"),
+            fragment_b=CloneFragment("y.py", 1, 1, 50, "x = 1"),
+            shared_tokens=50,
+        )
+        result = clone_coverage_per_file([pair])
+        assert abs(result["x.py"] - 100.0) < 1e-9
+        assert abs(result["y.py"] - 100.0) < 1e-9
