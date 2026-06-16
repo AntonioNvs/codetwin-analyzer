@@ -8,8 +8,8 @@ commits, branches e calculando tendências temporais.
 import logging
 import tempfile
 
-from dataclasses import dataclass, field
-from typing import List, Optional
+from dataclasses import dataclass
+from typing import Dict, List, Optional
 
 from codetwin_analyzer.github_client import GitHubClient
 from codetwin_analyzer.cpd_runner import CPDRunner
@@ -27,6 +27,16 @@ class HistoryEntry:
     type1_count: int
     type2_count: int
     total_clones: int
+
+
+@dataclass
+class BranchComparison:
+    """Resultado da comparação de clones entre duas ou mais branches."""
+    branch_names: List[str]
+    clone_counts: Dict[str, int]          # branch → total_clones
+    type1_counts: Dict[str, int]          # branch → type1_count
+    type2_counts: Dict[str, int]          # branch → type2_count
+    diff_pairs: Dict[str, int]            # 'branch_a vs branch_b' → diferença de total_clones
 
 
 class CloneHistory:
@@ -174,3 +184,90 @@ class CloneHistory:
 
         logger.info(f"Rastreamento concluído. {len(new_entries)} entrada(s) registrada(s).")
         return new_entries
+
+    def compare_branches(
+        self,
+        owner: str,
+        repo: str,
+        branches: List[str],
+        min_tokens: int = 100,
+    ) -> BranchComparison:
+        """
+        Detecta clones na ponta de cada branch informada e compara as contagens.
+
+        Para cada branch, baixa o repositório no seu estado mais recente, executa
+        o CPD e registra as contagens. O campo diff_pairs indica a diferença absoluta
+        de total_clones entre cada par de branches.
+
+        Args:
+            owner: Proprietário do repositório no GitHub.
+            repo: Nome do repositório.
+            branches: Lista de nomes de branches a comparar.
+            min_tokens: Número mínimo de tokens para o CPD.
+
+        Returns:
+            BranchComparison com contagens por branch e diffs entre pares.
+        """
+        clone_counts: Dict[str, int] = {}
+        type1_counts: Dict[str, int] = {}
+        type2_counts: Dict[str, int] = {}
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            for branch in branches:
+                logger.info(f"Analisando branch '{branch}' de {owner}/{repo}...")
+                try:
+                    counts = self._run_cpd_on_commit(
+                        owner, repo, branch, temp_dir, min_tokens=min_tokens
+                    )
+                except Exception as e:
+                    logger.warning(f"Erro ao analisar branch '{branch}': {e}. Usando zero.")
+                    counts = {"type1_count": 0, "type2_count": 0, "total_clones": 0}
+
+                clone_counts[branch] = counts["total_clones"]
+                type1_counts[branch] = counts["type1_count"]
+                type2_counts[branch] = counts["type2_count"]
+
+        diff_pairs: Dict[str, int] = {}
+        for i in range(len(branches)):
+            for j in range(i + 1, len(branches)):
+                key = f"{branches[i]} vs {branches[j]}"
+                diff_pairs[key] = abs(clone_counts[branches[i]] - clone_counts[branches[j]])
+
+        return BranchComparison(
+            branch_names=list(branches),
+            clone_counts=clone_counts,
+            type1_counts=type1_counts,
+            type2_counts=type2_counts,
+            diff_pairs=diff_pairs,
+        )
+
+    def track_default_branch_history(
+        self,
+        owner: str,
+        repo: str,
+        depth: int = 20,
+        min_tokens: int = 100,
+    ) -> List[HistoryEntry]:
+        """
+        Analisa os últimos N commits da branch default do repositório.
+
+        Atalho conveniente que resolve a branch padrão via GitHubClient e
+        delega para track_commit_range com max_commits=depth.
+
+        Args:
+            owner: Proprietário do repositório no GitHub.
+            repo: Nome do repositório.
+            depth: Número de commits recentes a analisar (padrão: 20).
+            min_tokens: Número mínimo de tokens para o CPD.
+
+        Returns:
+            Lista de HistoryEntry gerada nesta chamada.
+        """
+        default_branch = self.github_client.get_default_branch(owner, repo)
+        logger.info(
+            f"Rastreando branch default '{default_branch}' de {owner}/{repo} "
+            f"(últimos {depth} commits)..."
+        )
+        return self.track_commit_range(
+            owner, repo, max_commits=depth, min_tokens=min_tokens
+        )
