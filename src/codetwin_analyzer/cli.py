@@ -13,6 +13,8 @@ from codetwin_analyzer.seart_client import SEARTClient, SEARTAPIError
 from codetwin_analyzer.cpd_runner import CPDRunner, CPDExecutionError
 from codetwin_analyzer.parser import parse_cpd_xml, group_into_pairs
 from codetwin_analyzer.metrics import compute_clone_counts, most_cloned_files, clone_density
+from codetwin_analyzer.history import CloneHistory
+from codetwin_analyzer.exporter import CloneExporter
 
 logger = logging.getLogger("codetwin_analyzer")
 
@@ -87,7 +89,9 @@ class CodeTwinCLI:
         repo_url: str,
         min_tokens: int = 100,
         language: Optional[str] = None,
-        output: Optional[str] = None
+        format: str = "text",
+        output: Optional[str] = None,
+        history: bool = False
     ):
         """Analisa um repositório do GitHub em busca de código duplicado."""
         logger.info(f"Iniciando análise para: {repo_url}")
@@ -99,7 +103,7 @@ class CodeTwinCLI:
             logger.error("Erro: URL do repositório inválida. Use o formato https://github.com/owner/repo")
             sys.exit(1)
 
-        output_file = output or "cpd_output.xml"
+        xml_output = "cpd_output_temp.xml"
 
         try:
             github_client = GitHubClient()
@@ -112,13 +116,13 @@ class CodeTwinCLI:
                 logger.info("Iniciando varredura com PMD CPD...")
                 if language:
                     logger.debug(f"Forçando a linguagem: {language}")
-                    cpd_runner.run_cpd(tmpdir, output_file, min_tokens, language)
+                    cpd_runner.run_cpd(tmpdir, xml_output, min_tokens, language)
                 else:
                     logger.debug("Linguagem não fornecida. Iniciando autodetecção...")
-                    cpd_runner.run_with_auto_detect(tmpdir, output_file, min_tokens)
+                    cpd_runner.run_with_auto_detect(tmpdir, xml_output, min_tokens)
 
                 logger.info("Processando o XML e calculando estatísticas...")
-                fragments = parse_cpd_xml(output_file)
+                fragments = parse_cpd_xml(xml_output)
 
                 if not fragments:
                     logger.info("Nenhum clone encontrado! A base de código está limpa.")
@@ -126,22 +130,38 @@ class CodeTwinCLI:
 
                 pairs = group_into_pairs(fragments)
                 metrics = compute_clone_counts(pairs)
-                top_files = most_cloned_files(pairs, top_n=5)
 
-            print("\n" + "=" * 40)
-            print(" SUMÁRIO DE ANÁLISE")
-            print("=" * 40)
-            print(f"Total de Clones Encontrados: {metrics.total_clones}")
-            print(f"  - Tipo 1 (Idênticos):  {metrics.type1_count}")
-            print(f"  - Tipo 2 (Similares):  {metrics.type2_count}")
-            print(f"Total de Arquivos Afetados:  {metrics.total_files_affected}")
-            print(f"Total de Linhas Duplicadas:  {metrics.total_lines_duplicated}")
+            hist_entries = None
+            if history:
+                logger.info("Rastreando histórico de clones...")
+                clone_history = CloneHistory(github_client)
+                hist_entries = clone_history.track_default_branch_history(
+                    owner, repo, depth=20, min_tokens=min_tokens
+                )
 
-            print("\n Top 5 Arquivos Mais Clonados:")
-            for file_path, count in top_files:
-                print(f"  - {Path(file_path).name}: {count} ocorrências")
+            exporter = CloneExporter()
+            if output:
+                if format == "json":
+                    exporter.to_json({"metrics": metrics, "history": hist_entries}, output)
+                elif format == "csv":
+                    exporter.to_csv(pairs, output)
+                elif format == "html":
+                    exporter.to_html_report(metrics, pairs, hist_entries, output)
+                else:
+                    exporter.to_text_report(metrics, pairs, hist_entries, output)
+                logger.info(f"Resultados exportados para: {output}")
+            else:
+                if format == "json":
+                    print(exporter.to_json({"metrics": metrics, "history": hist_entries}))
+                elif format == "csv":
+                    logger.error("Formato CSV requer um arquivo de saída (--output).")
+                    sys.exit(1)
+                elif format == "html":
+                    print(exporter.to_html_report(metrics, pairs, hist_entries))
+                else:
+                    print("\n" + exporter.to_text_report(metrics, pairs, hist_entries))
 
-            logger.info(f"Resultados salvos em: {output_file}")
+            Path(xml_output).unlink(missing_ok=True)
 
         except Exception as e:
             self._handle_common_exceptions(e)
@@ -293,6 +313,43 @@ class CodeTwinCLI:
         except Exception as e:
             self._handle_common_exceptions(e)
 
+    def history(self, repo_url: str, depth: int = 20, min_tokens: int = 100):
+        """Analisa o histórico de clones da branch default e exibe a tendência."""
+        logger.info(f"Iniciando análise de histórico para: {repo_url} (depth={depth})")
+
+        sanitized_name = sanitize_repo_name(repo_url)
+        try:
+            owner, repo = sanitized_name.split("/")
+        except ValueError:
+            logger.error("Erro: URL do repositório inválida.")
+            sys.exit(1)
+
+        try:
+            github_client = GitHubClient()
+            clone_history = CloneHistory(github_client)
+
+            entries = clone_history.track_default_branch_history(
+                owner, repo, depth=depth, min_tokens=min_tokens
+            )
+            
+            if not entries:
+                logger.info("Nenhum histórico analisável encontrado.")
+                return
+
+            trend = clone_history.compute_trend()
+
+            print("\n" + "=" * 50)
+            print(" ANÁLISE DE TENDÊNCIA DE CLONES")
+            print("=" * 50)
+            print(f"Repositório: {owner}/{repo}")
+            print(f"Commits analisados: {len(entries)}")
+            print("-" * 50)
+            print(f"Tendência Tipo 1: {trend.type1_trend.upper()} (slope: {trend.type1_slope:.2f})")
+            print(f"Tendência Tipo 2: {trend.type2_trend.upper()} (slope: {trend.type2_slope:.2f})")
+            print("=" * 50)
+
+        except Exception as e:
+            self._handle_common_exceptions(e)
 
 def main():
     """Ponto de entrada principal para a CLI."""
