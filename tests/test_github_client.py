@@ -6,6 +6,8 @@ import pytest
 from unittest.mock import MagicMock
 from codetwin_analyzer.github_client import GitHubClient, GitHubAPIError
 
+pytestmark = pytest.mark.unit
+
 
 class TestGitHubClient:
     """Testes unitários para a classe GitHubClient."""

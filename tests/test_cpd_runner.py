@@ -4,6 +4,8 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 from codetwin_analyzer.cpd_runner import CPDRunner, CPDExecutionError
 
+pytestmark = pytest.mark.unit
+
 
 class TestCPDRunner:
     """Testes unitários para a classe CPDRunner."""

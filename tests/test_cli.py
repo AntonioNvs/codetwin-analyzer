@@ -7,6 +7,8 @@ from codetwin_analyzer.cli import CodeTwinCLI
 from codetwin_analyzer.parser import CloneFragment, ClonePair
 from codetwin_analyzer.metrics import CloneMetrics
 
+pytestmark = pytest.mark.integration
+
 
 def _make_metrics(total: int = 3, t1: int = 2, t2: int = 1) -> CloneMetrics:
     """Helper: cria um CloneMetrics com valores controlados."""

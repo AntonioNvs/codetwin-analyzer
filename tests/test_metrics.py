@@ -17,6 +17,8 @@ from codetwin_analyzer.metrics import (
     top_clone_files_by_type,
 )
 
+pytestmark = pytest.mark.unit
+
 
 def _make_pair(
     tmp_path: Path,
