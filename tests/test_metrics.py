@@ -8,6 +8,10 @@ from codetwin_analyzer.metrics import (
     most_cloned_files,
     most_cloned_functions,
     clone_density,
+    statistical_summary,
+    inter_file_similarity,
+    token_overlap_matrix,
+    repository_clone_index,
 )
 
 
@@ -161,3 +165,111 @@ class TestMetrics:
         assert most_cloned_files([]) == []
         assert most_cloned_functions([]) == []
         assert clone_density([], total_lines=1000) == 0.0
+
+    def test_statistical_summary(self) -> None:
+        """statistical_summary retorna média, mediana e desvio corretos para múltiplos pares."""
+        # Fragmentos com tamanhos: frag_a=5 linhas, frag_b=3 linhas (por par)
+        pairs = [
+            ClonePair(
+                fragment_a=CloneFragment("a.py", 1, 5, 100, "code"),
+                fragment_b=CloneFragment("b.py", 1, 3, 100, "code"),
+                shared_tokens=100,
+                type="Tipo 1",
+            ),
+            ClonePair(
+                fragment_a=CloneFragment("c.py", 1, 5, 100, "code"),
+                fragment_b=CloneFragment("d.py", 1, 3, 100, "code"),
+                shared_tokens=100,
+                type="Tipo 2",
+            ),
+        ]
+
+        result = statistical_summary(pairs)
+
+        # sizes = [5, 3, 5, 3] → mean=4.0, median=4.0
+        assert result["mean_clone_size"] == 4.0
+        assert result["median_clone_size"] == 4.0
+        assert result["min_clone_size"] == 3
+        assert result["max_clone_size"] == 5
+        assert result["stddev_clone_size"] > 0
+        assert result["total_unique_files"] == 4
+        assert abs(result["type1_ratio"] - 0.5) < 1e-9
+        assert abs(result["type2_ratio"] - 0.5) < 1e-9
+
+    def test_statistical_summary_empty(self) -> None:
+        """statistical_summary com lista vazia retorna zeros sem erro."""
+        result = statistical_summary([])
+
+        assert result["mean_clone_size"] == 0.0
+        assert result["median_clone_size"] == 0.0
+        assert result["stddev_clone_size"] == 0.0
+        assert result["min_clone_size"] == 0
+        assert result["max_clone_size"] == 0
+        assert result["total_unique_files"] == 0
+        assert result["type1_ratio"] == 0.0
+        assert result["type2_ratio"] == 0.0
+
+    def test_statistical_summary_single(self) -> None:
+        """statistical_summary com um único par retorna estatísticas corretas sem erro de stdev."""
+        pair = ClonePair(
+            fragment_a=CloneFragment("x.py", 1, 10, 50, "code"),
+            fragment_b=CloneFragment("y.py", 1, 10, 50, "code"),
+            shared_tokens=50,
+            type="Tipo 1",
+        )
+
+        result = statistical_summary([pair])
+
+        assert result["mean_clone_size"] == 10.0
+        assert result["min_clone_size"] == 10
+        assert result["max_clone_size"] == 10
+        assert result["stddev_clone_size"] == 0.0
+
+    def test_inter_file_similarity(self) -> None:
+        """inter_file_similarity retorna scores entre 0 e 1 para pares de arquivos."""
+        pair = ClonePair(
+            fragment_a=CloneFragment("alpha.py", 1, 10, 100, "code"),
+            fragment_b=CloneFragment("beta.py", 1, 10, 100, "code"),
+            shared_tokens=100,
+        )
+
+        result = inter_file_similarity([pair])
+
+        assert "alpha.py" in result
+        assert "beta.py" in result["alpha.py"]
+        score = result["alpha.py"]["beta.py"]
+        assert 0.0 <= score <= 1.0
+        # score = (10+10)/(10+10) = 1.0
+        assert abs(score - 1.0) < 1e-9
+
+    def test_repository_clone_index(self) -> None:
+        """repository_clone_index retorna valor entre 0 e 1 com fórmula correta."""
+        pair = ClonePair(
+            fragment_a=CloneFragment("a.py", 1, 10, 100, "code"),
+            fragment_b=CloneFragment("b.py", 1, 10, 100, "code"),
+            shared_tokens=100,
+        )
+        # linhas duplicadas = 10+10 = 20 → density = 20/200 = 0.1
+        # arquivos únicos = 2 → file_ratio = 2/10 = 0.2
+        # index = (0.1 + 0.2) / 2 = 0.15
+        index = repository_clone_index([pair], total_files=10, total_lines=200)
+
+        assert 0.0 <= index <= 1.0
+        assert abs(index - 0.15) < 1e-9
+
+    def test_token_overlap_matrix(self) -> None:
+        """token_overlap_matrix retorna Jaccard correto entre snippets de arquivos."""
+        pair = ClonePair(
+            fragment_a=CloneFragment("p.py", 1, 2, 50, "def foo bar"),
+            fragment_b=CloneFragment("q.py", 1, 2, 50, "def foo baz"),
+            shared_tokens=50,
+        )
+
+        result = token_overlap_matrix([pair])
+
+        # tokens p.py = {def, foo, bar}, q.py = {def, foo, baz}
+        # intersecção = {def, foo} → |2|, união = {def, foo, bar, baz} → |4|
+        # Jaccard = 2/4 = 0.5
+        assert "p.py" in result
+        assert "q.py" in result["p.py"]
+        assert abs(result["p.py"]["q.py"] - 0.5) < 1e-9
