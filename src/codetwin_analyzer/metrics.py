@@ -166,3 +166,85 @@ def statistical_summary(clone_pairs: List[ClonePair]) -> Dict[str, Any]:
         "type1_ratio": type1_count / total,
         "type2_ratio": type2_count / total,
     }
+
+
+def inter_file_similarity(clone_pairs: List[ClonePair]) -> Dict[str, Dict[str, float]]:
+    """
+    Calcula um score de similaridade entre pares de arquivos.
+    Para cada par (A, B): score = (2 * linhas_duplicadas_AB) / (total_linhas_A + total_linhas_B).
+    Retorna nested dict: {arquivo_a: {arquivo_b: score}}.
+    """
+    shared: Dict[tuple, int] = {}
+    totals: Dict[str, int] = {}
+
+    for pair in clone_pairs:
+        fa, fb = pair.fragment_a, pair.fragment_b
+        lines_a = (fa.end_line - fa.begin_line) + 1
+        lines_b = (fb.end_line - fb.begin_line) + 1
+
+        key = (fa.source_file, fb.source_file)
+        shared[key] = shared.get(key, 0) + lines_a + lines_b
+        totals[fa.source_file] = totals.get(fa.source_file, 0) + lines_a
+        totals[fb.source_file] = totals.get(fb.source_file, 0) + lines_b
+
+    result: Dict[str, Dict[str, float]] = {}
+    for (file_a, file_b), dup_lines in shared.items():
+        denom = totals.get(file_a, 0) + totals.get(file_b, 0)
+        score = dup_lines / denom if denom > 0 else 0.0
+        result.setdefault(file_a, {})[file_b] = score
+        result.setdefault(file_b, {})[file_a] = score
+
+    return result
+
+
+def token_overlap_matrix(clone_pairs: List[ClonePair]) -> Dict[str, Dict[str, float]]:
+    """
+    Calcula a similaridade de Jaccard entre os conjuntos de tokens de cada par de arquivos.
+    Jaccard(A, B) = |A ∩ B| / |A ∪ B|.
+    Os tokens são extraídos dos code_snippets de cada fragmento.
+    Retorna nested dict: {arquivo_a: {arquivo_b: jaccard}}.
+    """
+    file_tokens: Dict[str, set] = {}
+
+    for pair in clone_pairs:
+        for frag in (pair.fragment_a, pair.fragment_b):
+            tokens = set(frag.code_snippet.split())
+            file_tokens.setdefault(frag.source_file, set()).update(tokens)
+
+    result: Dict[str, Dict[str, float]] = {}
+    files = list(file_tokens.keys())
+
+    for i, file_a in enumerate(files):
+        for file_b in files[i + 1:]:
+            set_a = file_tokens[file_a]
+            set_b = file_tokens[file_b]
+            union = set_a | set_b
+            jaccard = len(set_a & set_b) / len(union) if union else 0.0
+            result.setdefault(file_a, {})[file_b] = jaccard
+            result.setdefault(file_b, {})[file_a] = jaccard
+
+    return result
+
+
+def repository_clone_index(
+    clone_pairs: List[ClonePair],
+    total_files: int,
+    total_lines: int,
+) -> float:
+    """
+    Calcula um índice único (0 a 1) que representa o grau geral de clonagem do repositório.
+    Combina a densidade de linhas duplicadas com a proporção de arquivos afetados.
+    Retorna 0.0 se não houver clones ou os totais forem inválidos.
+    """
+    if not clone_pairs or total_files <= 0 or total_lines <= 0:
+        return 0.0
+
+    line_density = _unique_fragment_lines(clone_pairs) / total_lines
+
+    unique_files: set = set()
+    for pair in clone_pairs:
+        unique_files.add(pair.fragment_a.source_file)
+        unique_files.add(pair.fragment_b.source_file)
+    file_ratio = len(unique_files) / total_files
+
+    return (line_density + file_ratio) / 2.0
