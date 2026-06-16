@@ -331,7 +331,7 @@ class CodeTwinCLI:
             entries = clone_history.track_default_branch_history(
                 owner, repo, depth=depth, min_tokens=min_tokens
             )
-            
+
             if not entries:
                 logger.info("Nenhum histórico analisável encontrado.")
                 return
@@ -350,6 +350,7 @@ class CodeTwinCLI:
 
         except Exception as e:
             self._handle_common_exceptions(e)
+
 
 def main():
     """Ponto de entrada principal para a CLI."""

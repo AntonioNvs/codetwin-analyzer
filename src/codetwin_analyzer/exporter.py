@@ -11,7 +11,7 @@ import dataclasses
 from pathlib import Path
 from typing import Any, List, Optional, Union
 
-from codetwin_analyzer.parser import CloneFragment, ClonePair
+from codetwin_analyzer.parser import ClonePair
 from codetwin_analyzer.metrics import CloneMetrics
 from codetwin_analyzer.history import HistoryEntry
 
