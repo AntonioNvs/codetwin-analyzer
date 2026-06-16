@@ -51,7 +51,7 @@ class TestCLI:
             cli.analyze(repo_url="https://github.com/owner/repo")
 
         captured = capsys.readouterr()
-        assert "SUMÁRIO" in captured.out
+        assert "RELATÓRIO DE CLONES" in captured.out
         assert "3" in captured.out  # total_clones
         assert "2" in captured.out  # type1_count
 
