@@ -248,3 +248,68 @@ def repository_clone_index(
     file_ratio = len(unique_files) / total_files
 
     return (line_density + file_ratio) / 2.0
+
+
+def file_level_clone_matrix(clone_pairs: List[ClonePair]) -> Dict[str, Dict[str, int]]:
+    """
+    Constrói uma matriz NxN (nested dict) com o número de pares clonados entre cada par de arquivos.
+    Retorna {arquivo_a: {arquivo_b: contagem}} (simétrico).
+    """
+    matrix: Dict[str, Dict[str, int]] = {}
+
+    for pair in clone_pairs:
+        file_a = pair.fragment_a.source_file
+        file_b = pair.fragment_b.source_file
+
+        matrix.setdefault(file_a, {})
+        matrix.setdefault(file_b, {})
+        matrix[file_a][file_b] = matrix[file_a].get(file_b, 0) + 1
+        matrix[file_b][file_a] = matrix[file_b].get(file_a, 0) + 1
+
+    return matrix
+
+
+def clone_coverage_per_file(clone_pairs: List[ClonePair]) -> Dict[str, float]:
+    """
+    Calcula a porcentagem de linhas duplicadas por arquivo.
+    Usa o maior end_line observado como proxy do tamanho do arquivo.
+    Retorna {arquivo: percentual (0.0 a 100.0)}.
+    """
+    duplicated: Dict[str, set] = {}
+    file_max_line: Dict[str, int] = {}
+
+    for pair in clone_pairs:
+        for frag in (pair.fragment_a, pair.fragment_b):
+            f = frag.source_file
+            dup_lines = set(range(frag.begin_line, frag.end_line + 1))
+            duplicated.setdefault(f, set()).update(dup_lines)
+            file_max_line[f] = max(file_max_line.get(f, 0), frag.end_line)
+
+    result: Dict[str, float] = {}
+    for f, dup_lines in duplicated.items():
+        total = file_max_line.get(f, 1)
+        result[f] = (len(dup_lines) / total) * 100.0
+
+    return result
+
+
+def top_clone_files_by_type(
+    clone_pairs: List[ClonePair],
+    top_n: int = 10,
+) -> Dict[str, List[Tuple[str, int]]]:
+    """
+    Retorna rankings separados dos arquivos mais clonados para Tipo 1 e Tipo 2.
+    Retorna {\"Tipo 1\": [(arquivo, contagem), ...], \"Tipo 2\": [(arquivo, contagem), ...]}.
+    """
+    counters: Dict[str, Counter] = {"Tipo 1": Counter(), "Tipo 2": Counter()}
+
+    for pair in clone_pairs:
+        clone_type = pair.type or ""
+        if clone_type in counters:
+            counters[clone_type][pair.fragment_a.source_file] += 1
+            counters[clone_type][pair.fragment_b.source_file] += 1
+
+    return {
+        "Tipo 1": counters["Tipo 1"].most_common(top_n),
+        "Tipo 2": counters["Tipo 2"].most_common(top_n),
+    }
