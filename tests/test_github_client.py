@@ -3,35 +3,26 @@ import os
 import zipfile
 import pytest
 
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock
 from codetwin_analyzer.github_client import GitHubClient, GitHubAPIError
 
 
 class TestGitHubClient:
     """Testes unitários para a classe GitHubClient."""
 
-    # ------------------------------------------------------------------
-    # test_init_with_token
-    # ------------------------------------------------------------------
-    def test_init_with_token(self):
+    def test_init_with_token(self) -> None:
         """Verifica que o header Authorization é configurado corretamente."""
         client = GitHubClient(token="test-token-123")
         assert client.session.headers.get("Authorization") == "Bearer test-token-123"
 
-    # ------------------------------------------------------------------
-    # test_init_without_token_uses_env
-    # ------------------------------------------------------------------
-    def test_init_without_token_uses_env(self, monkeypatch):
+    def test_init_without_token_uses_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Verifica que o token é lido de GITHUB_TOKEN quando não passado."""
         monkeypatch.setenv("GITHUB_TOKEN", "env-token-abc")
         client = GitHubClient()
         assert client.token == "env-token-abc"
         assert client.session.headers.get("Authorization") == "Bearer env-token-abc"
 
-    # ------------------------------------------------------------------
-    # test_get_success
-    # ------------------------------------------------------------------
-    def test_get_success(self, mock_github_session):
+    def test_get_success(self, mock_github_session: MagicMock) -> None:
         """_get retorna JSON corretamente em resposta 200."""
         mock_github_session.return_value.status_code = 200
         mock_github_session.return_value.json.return_value = {"key": "value"}
@@ -41,10 +32,7 @@ class TestGitHubClient:
 
         assert result == {"key": "value"}
 
-    # ------------------------------------------------------------------
-    # test_get_http_error
-    # ------------------------------------------------------------------
-    def test_get_http_error(self, mock_github_session):
+    def test_get_http_error(self, mock_github_session: MagicMock) -> None:
         """_get levanta GitHubAPIError quando o status_code não é 200."""
         mock_github_session.return_value.status_code = 404
         mock_github_session.return_value.text = "Not Found"
@@ -56,10 +44,7 @@ class TestGitHubClient:
 
         assert "404" in str(exc_info.value)
 
-    # ------------------------------------------------------------------
-    # test_get_default_branch
-    # ------------------------------------------------------------------
-    def test_get_default_branch(self, mock_github_session):
+    def test_get_default_branch(self, mock_github_session: MagicMock) -> None:
         """get_default_branch retorna o valor de 'default_branch' da API."""
         mock_github_session.return_value.status_code = 200
         mock_github_session.return_value.json.return_value = {
@@ -72,10 +57,7 @@ class TestGitHubClient:
 
         assert branch == "main"
 
-    # ------------------------------------------------------------------
-    # test_get_repo_metadata_returns_expected_keys
-    # ------------------------------------------------------------------
-    def test_get_repo_metadata_returns_expected_keys(self, mock_github_session):
+    def test_get_repo_metadata_returns_expected_keys(self, mock_github_session: MagicMock) -> None:
         """get_repo_metadata retorna dict com todas as chaves esperadas."""
         mock_github_session.return_value.status_code = 200
         mock_github_session.return_value.json.return_value = {
@@ -102,29 +84,22 @@ class TestGitHubClient:
         assert metadata["language"] == "Python"
         assert metadata["license"] == "MIT License"
 
-    # ------------------------------------------------------------------
-    # test_download_repository
-    # ------------------------------------------------------------------
-    def test_download_repository(self, tmp_path, mock_github_session):
+    def test_download_repository(self, tmp_path: pytest.TempPathFactory, mock_github_session: MagicMock) -> None:
         """download_repository faz GET com stream e extrai o ZIP no destino."""
-        # Cria um ZIP em memória com um arquivo de exemplo
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, "w") as zf:
             zf.writestr("owner-repo-abc123/README.md", "# Test Repo")
         zip_bytes = zip_buffer.getvalue()
 
-        # Resposta inicial para get_default_branch (primeira chamada)
         mock_branch_response = MagicMock()
         mock_branch_response.status_code = 200
         mock_branch_response.json.return_value = {"default_branch": "main"}
         mock_branch_response.links = {}
 
-        # Resposta para o download do ZIP (segunda chamada)
         mock_zip_response = MagicMock()
         mock_zip_response.status_code = 200
         mock_zip_response.iter_content.return_value = [zip_bytes]
 
-        # Primeira chamada → branch, segunda → download
         mock_github_session.side_effect = [mock_branch_response, mock_zip_response]
 
         destination = str(tmp_path / "extracted")
@@ -133,7 +108,6 @@ class TestGitHubClient:
         client = GitHubClient(token="token")
         client.download_repository("owner", "repo", destination)
 
-        # Verifica que algum arquivo foi extraído
         extracted_files = list(tmp_path.rglob("*.md"))
         assert len(extracted_files) == 1
         assert extracted_files[0].read_text() == "# Test Repo"
