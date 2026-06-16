@@ -9,7 +9,7 @@ import logging
 import tempfile
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from codetwin_analyzer.github_client import GitHubClient
 from codetwin_analyzer.cpd_runner import CPDRunner
@@ -37,6 +37,15 @@ class BranchComparison:
     type1_counts: Dict[str, int]          # branch → type1_count
     type2_counts: Dict[str, int]          # branch → type2_count
     diff_pairs: Dict[str, int]            # 'branch_a vs branch_b' → diferença de total_clones
+
+
+@dataclass
+class TrendResult:
+    """Resultado da análise de tendência temporal de clones."""
+    type1_trend: str    # 'crescente', 'decrescente' ou 'estável'
+    type2_trend: str    # 'crescente', 'decrescente' ou 'estável'
+    type1_slope: float  # inclinação da reta de regressão para Tipo 1
+    type2_slope: float  # inclinação da reta de regressão para Tipo 2
 
 
 class CloneHistory:
@@ -270,4 +279,74 @@ class CloneHistory:
         )
         return self.track_commit_range(
             owner, repo, max_commits=depth, min_tokens=min_tokens
+        )
+
+    def to_time_series(
+        self,
+    ) -> List[Tuple[str, int, int]]:
+        """
+        Converte as entradas do histórico em série temporal ordenada.
+
+        Returns:
+            Lista de tuplas (timestamp, type1_count, type2_count) ordenada
+            cronologicamente pelo timestamp ISO 8601.
+        """
+        sorted_entries = sorted(
+            self.entries,
+            key=lambda e: e.timestamp or "",
+        )
+        return [(e.timestamp, e.type1_count, e.type2_count) for e in sorted_entries]
+
+    def compute_trend(self) -> TrendResult:
+        """
+        Calcula a tendência temporal de clones por tipo usando regressão linear.
+
+        A regressão é calculada manualmente via somatórios (sem dependências externas).
+        Para menos de 2 pontos, retorna slope=0.0 e tendência 'estável'.
+
+        Returns:
+            TrendResult com slope e classificação de tendência para Tipo 1 e Tipo 2.
+        """
+        series = self.to_time_series()
+        n = len(series)
+
+        def _classify(slope: float) -> str:
+            if slope > 0:
+                return "crescente"
+            elif slope < 0:
+                return "decrescente"
+            return "estável"
+
+        def _linear_slope(ys: List[float]) -> float:
+            """Calcula o slope (b) de y = a + b*x via mínimos quadrados."""
+            xs = list(range(len(ys)))
+            n = len(ys)
+            sum_x = sum(xs)
+            sum_y = sum(ys)
+            sum_xy = sum(x * y for x, y in zip(xs, ys))
+            sum_x2 = sum(x * x for x in xs)
+            denom = n * sum_x2 - sum_x ** 2
+            if denom == 0:
+                return 0.0
+            return (n * sum_xy - sum_x * sum_y) / denom
+
+        if n < 2:
+            return TrendResult(
+                type1_trend="estável",
+                type2_trend="estável",
+                type1_slope=0.0,
+                type2_slope=0.0,
+            )
+
+        type1_values = [float(t[1]) for t in series]
+        type2_values = [float(t[2]) for t in series]
+
+        slope1 = _linear_slope(type1_values)
+        slope2 = _linear_slope(type2_values)
+
+        return TrendResult(
+            type1_trend=_classify(slope1),
+            type2_trend=_classify(slope2),
+            type1_slope=slope1,
+            type2_slope=slope2,
         )
