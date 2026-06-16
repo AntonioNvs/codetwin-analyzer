@@ -5,6 +5,7 @@ from pathlib import Path
 from contextlib import contextmanager
 from typing import Generator, List, Union
 
+
 def sanitize_repo_name(url: str) -> str:
     """
     Extrai o padrão 'owner/repo' de uma URL do GitHub.
@@ -15,8 +16,9 @@ def sanitize_repo_name(url: str) -> str:
 
     if match:
         return f"{match.group(1)}/{match.group(2)}"
-    
+
     return url
+
 
 def ensure_dir(path: Union[str, Path]) -> None:
     """
@@ -24,6 +26,7 @@ def ensure_dir(path: Union[str, Path]) -> None:
     Equivalente ao 'mkdir -p' no terminal.
     """
     Path(path).mkdir(parents=True, exist_ok=True)
+
 
 @contextmanager
 def temp_dir() -> Generator[str, None, None]:
@@ -33,6 +36,7 @@ def temp_dir() -> Generator[str, None, None]:
     """
     with tempfile.TemporaryDirectory() as tmpdir:
         yield tmpdir
+
 
 def find_files(directory: Union[str, Path], extensions: List[str]) -> List[Path]:
     """

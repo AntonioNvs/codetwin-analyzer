@@ -7,6 +7,7 @@ from itertools import combinations
 from collections import defaultdict
 from typing import List, Union, Optional
 
+
 @dataclass
 class CloneFragment:
     """Representa um trecho de código que foi identificado como clone."""
@@ -16,6 +17,7 @@ class CloneFragment:
     tokens: int
     code_snippet: str
     duplication_id: int = 0
+
 
 @dataclass
 class ClonePair:
@@ -45,7 +47,7 @@ def parse_cpd_xml(file_path: Union[str, Path]) -> List[CloneFragment]:
     root = tree.getroot()
 
     ns = _extract_namespace(root.tag)
-    tag = lambda name: f"{{{ns}}}{name}" if ns else name
+    def tag(name): return f"{{{ns}}}{name}" if ns else name
 
     for dup_id, duplication in enumerate(root.findall(tag("duplication"))):
         tokens = int(duplication.get("tokens", 0))
@@ -116,7 +118,7 @@ def classify_clone_type(pair: ClonePair) -> None:
         try:
             with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                 lines = f.readlines()
-                selected_lines = lines[begin_line - 1 : end_line]
+                selected_lines = lines[begin_line - 1: end_line]
                 return "".join(selected_lines)
         except Exception:
             return None
@@ -140,7 +142,7 @@ def classify_clone_type(pair: ClonePair) -> None:
 
     norm_a = normalize_code(code_a)
     norm_b = normalize_code(code_b)
-    
+
     if norm_a == norm_b:
         pair.type = "Tipo 2"
     else:

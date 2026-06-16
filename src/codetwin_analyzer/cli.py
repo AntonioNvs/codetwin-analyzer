@@ -18,28 +18,29 @@ logger = logging.getLogger("codetwin_analyzer")
 
 load_dotenv()
 
+
 def setup_logging(verbose: bool, quiet: bool):
     """Configura os handlers de log para o console e para o arquivo."""
     if logger.hasHandlers():
         logger.handlers.clear()
-        
-    logger.setLevel(logging.DEBUG) 
+
+    logger.setLevel(logging.DEBUG)
 
     file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - [%(module)s] %(message)s')
     file_handler = logging.FileHandler('codetwin.log', encoding='utf-8')
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(file_formatter)
 
-    console_formatter = logging.Formatter('%(message)s') 
+    console_formatter = logging.Formatter('%(message)s')
     console_handler = logging.StreamHandler(sys.stdout)
-    
+
     if quiet:
         console_handler.setLevel(logging.WARNING)
     elif verbose:
         console_handler.setLevel(logging.DEBUG)
     else:
         console_handler.setLevel(logging.INFO)
-        
+
     console_handler.setFormatter(console_formatter)
 
     logger.addHandler(file_handler)
@@ -52,7 +53,7 @@ class CodeTwinCLI:
     def __init__(self, verbose: bool = False, quiet: bool = False):
         """
         Inicializa a CLI e configura o nível de verbosidade dos logs.
-        
+
         Args:
             verbose: Ativa logs detalhados de depuração (DEBUG) no console.
             quiet: Suprime mensagens informativas, mostrando apenas avisos/erros (WARNING).
@@ -77,20 +78,20 @@ class CodeTwinCLI:
         elif isinstance(exc, ValueError):
             logger.error(f"Erro de validação: {exc}")
         else:
-            logger.exception(f"Erro inesperado: {exc}") 
-            
+            logger.exception(f"Erro inesperado: {exc}")
+
         sys.exit(1)
 
     def analyze(
-        self, 
-        repo_url: str, 
-        min_tokens: int = 100, 
-        language: Optional[str] = None, 
+        self,
+        repo_url: str,
+        min_tokens: int = 100,
+        language: Optional[str] = None,
         output: Optional[str] = None
     ):
         """Analisa um repositório do GitHub em busca de código duplicado."""
         logger.info(f"Iniciando análise para: {repo_url}")
-        
+
         sanitized_name = sanitize_repo_name(repo_url)
         try:
             owner, repo = sanitized_name.split("/")
@@ -107,7 +108,7 @@ class CodeTwinCLI:
             with temp_dir() as tmpdir:
                 logger.info(f"Baixando código-fonte de {owner}/{repo}...")
                 github_client.download_repository(owner, repo, destination=tmpdir)
-                
+
                 logger.info("Iniciando varredura com PMD CPD...")
                 if language:
                     logger.debug(f"Forçando a linguagem: {language}")
@@ -118,7 +119,7 @@ class CodeTwinCLI:
 
                 logger.info("Processando o XML e calculando estatísticas...")
                 fragments = parse_cpd_xml(output_file)
-                
+
                 if not fragments:
                     logger.info("Nenhum clone encontrado! A base de código está limpa.")
                     return
@@ -127,19 +128,19 @@ class CodeTwinCLI:
                 metrics = compute_clone_counts(pairs)
                 top_files = most_cloned_files(pairs, top_n=5)
 
-            print("\n" + "="*40)
+            print("\n" + "=" * 40)
             print(" SUMÁRIO DE ANÁLISE")
-            print("="*40)
+            print("=" * 40)
             print(f"Total de Clones Encontrados: {metrics.total_clones}")
             print(f"  - Tipo 1 (Idênticos):  {metrics.type1_count}")
             print(f"  - Tipo 2 (Similares):  {metrics.type2_count}")
             print(f"Total de Arquivos Afetados:  {metrics.total_files_affected}")
             print(f"Total de Linhas Duplicadas:  {metrics.total_lines_duplicated}")
-            
+
             print("\n Top 5 Arquivos Mais Clonados:")
             for file_path, count in top_files:
                 print(f"  - {Path(file_path).name}: {count} ocorrências")
-                
+
             logger.info(f"Resultados salvos em: {output_file}")
 
         except Exception as e:
@@ -148,7 +149,7 @@ class CodeTwinCLI:
     def metrics(self, repo_url: str, min_tokens: int = 100):
         """Extrai um painel detalhado de métricas e densidade de clones de um repositório."""
         logger.info(f"Extraindo métricas avançadas para: {repo_url}")
-        
+
         sanitized_name = sanitize_repo_name(repo_url)
         try:
             owner, repo = sanitized_name.split("/")
@@ -173,21 +174,21 @@ class CodeTwinCLI:
             with temp_dir() as tmpdir:
                 logger.info(f"Baixando repositório {owner}/{repo}...")
                 github_client.download_repository(owner, repo, destination=tmpdir)
-                
+
                 logger.debug("Detectando linguagem predominante...")
                 language = cpd_runner.detect_language(tmpdir)
                 if not language:
                     raise ValueError("Não foi possível detectar a linguagem do repositório de forma automática.")
-                    
+
                 logger.info(f"Linguagem predominante identificada: {language.capitalize()}")
-                
+
                 logger.debug("Contando linhas físicas de código fonte...")
                 ext_mapping = {
                     "python": [".py"], "java": [".java"], "javascript": [".js", ".jsx"],
                     "typescript": [".ts", ".tsx"], "cs": [".cs"], "c": [".c", ".h"],
                     "cpp": [".cpp", ".hpp", ".cc"], "go": [".go"], "ruby": [".rb"]
                 }
-                
+
                 valid_extensions = ext_mapping.get(language, [])
                 for file_path in Path(tmpdir).rglob("*.*"):
                     if file_path.is_file() and file_path.suffix.lower() in valid_extensions:
@@ -202,7 +203,7 @@ class CodeTwinCLI:
 
                 logger.info("Processando o XML, lendo arquivos locais e calculando estatísticas...")
                 fragments = parse_cpd_xml(output_file)
-                
+
                 if fragments:
                     pairs = group_into_pairs(fragments)
                     # AGORA SIM: Roda a classificação abrindo os arquivos reais antes que o 'with' acabe!
@@ -213,34 +214,34 @@ class CodeTwinCLI:
             # --- O bloco 'with' fecha aqui e limpa o /tmp ---
 
             if not fragments or not counts:
-                print("\n" + "="*50)
+                print("\n" + "=" * 50)
                 print(" RELATÓRIO DE MÉTRICAS - CÓDIGO LIMPO")
-                print("="*50)
+                print("=" * 50)
                 print(f"Total de Linhas de Código: {total_lines}")
-                print(f"Densidade de Clones:       0.00%")
+                print("Densidade de Clones:       0.00%")
                 return
 
-            print("\n" + "═"*50)
+            print("\n" + "═" * 50)
             print(" PAINEL DE MÉTRICAS DE CLONES (VERIFICAÇÃO COMPLETA)")
-            print("═"*50)
+            print("═" * 50)
             print(f" Repositório:          {owner}/{repo}")
             print(f" Linguagem Base:       {language.capitalize()}")
             print(f" Total de Linhas (LOC): {total_lines}")
             print("\n TIPOS DE CLONES DETECTADOS")
-            print(" ─"*24)
+            print(" ─" * 24)
             print(f"  Total de Ocorrências:   {counts.total_clones}")
             print(f"  - Tipo 1 (Idênticos):  {counts.type1_count}")
             print(f"  - Tipo 2 (Similares):  {counts.type2_count}")
             print("\n DENSIDADE")
-            print(" ─"*24)
+            print(" ─" * 24)
             print(f"  Linhas Duplicadas:      {counts.total_lines_duplicated}")
             print(f"  Densidade Geral:        {density * 100:.2f}% do projeto")
             print("\n TOP 5 ARQUIVOS CRÍTICOS")
-            print(" ─"*24)
+            print(" ─" * 24)
             for file_path, count in top_files:
                 print(f"  • {Path(file_path).name}: {count} vezes")
-            print("═"*50)
-            
+            print("═" * 50)
+
             Path(output_file).unlink(missing_ok=True)
 
         except Exception as e:
@@ -249,15 +250,15 @@ class CodeTwinCLI:
     def search(self, language: str, min_stars: int = 10, max_results: int = 10, analyze: bool = False):
         """Busca repositórios via SEART GHS e, opcionalmente, faz uma análise em lote."""
         logger.info(f"Buscando repositórios de '{language}' (Min. Stars: {min_stars})...")
-        
+
         try:
             seart_client = SEARTClient()
             repos = seart_client.search_repositories(
-                language=language, 
-                min_stars=min_stars, 
+                language=language,
+                min_stars=min_stars,
                 max_results=max_results
             )
-            
+
             if not repos:
                 logger.warning("Nenhum repositório encontrado com os critérios fornecidos.")
                 return
@@ -265,36 +266,38 @@ class CodeTwinCLI:
             print(f"\nForam encontrados {len(repos)} repositórios:")
             for i, repo_name in enumerate(repos, 1):
                 print(f"  {i}. {repo_name}")
-                
+
             if not analyze:
                 return
-                
-            print("\n" + "="*50)
+
+            print("\n" + "=" * 50)
             logger.info("Iniciando análise em lote (Batch Analysis)...")
-            print("="*50)
-            
+            print("=" * 50)
+
             for repo_name in repos:
                 repo_url = f"https://github.com/{repo_name}"
                 safe_repo_name = repo_name.replace("/", "_")
                 xml_output = f"{safe_repo_name}_cpd.xml"
-                
+
                 print("\n" + "-" * 40)
                 logger.info(f"Inspecionando: {repo_name}")
-                
+
                 try:
                     self.analyze(repo_url=repo_url, language=language, output=xml_output)
                 except SystemExit:
                     logger.warning(f"Pulo forçado: falha ao processar {repo_name}. Avançando para o próximo...")
                     continue
-                    
+
             logger.info("Análise em lote concluída com sucesso!")
 
         except Exception as e:
             self._handle_common_exceptions(e)
 
+
 def main():
     """Ponto de entrada principal para a CLI."""
     fire.Fire(CodeTwinCLI)
+
 
 if __name__ == "__main__":
     main()

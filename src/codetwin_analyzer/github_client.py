@@ -6,6 +6,7 @@ import requests
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 
+
 class GitHubAPIError(Exception):
     """Exceção customizada para erros na API do GitHub."""
     pass
@@ -24,7 +25,7 @@ class GitHubClient:
         self.session.headers.update({
             "Accept": "application/vnd.github.v3+json",
         })
-        
+
         if self.token:
             self.session.headers.update({
                 "Authorization": f"Bearer {self.token}"
@@ -44,9 +45,9 @@ class GitHubClient:
             raise GitHubAPIError(
                 f"Erro na API do GitHub (Status {response.status_code}) ao acessar {url}: {response.text}"
             )
-        
+
         return response.json()
-    
+
     def get_default_branch(self, owner: str, repo: str) -> str:
         """
         Obtém a branch padrão (default_branch) de um repositório.
@@ -54,7 +55,7 @@ class GitHubClient:
         endpoint = f"/repos/{owner}/{repo}"
         data = self._get(endpoint)
         return data.get("default_branch", "main")
-    
+
     def get_repo_metadata(self, owner: str, repo: str) -> Dict[str, Any]:
         """
         Obtém metadados específicos de um repositório.
@@ -75,7 +76,7 @@ class GitHubClient:
             "open_issues": data.get("open_issues_count", 0),
             "license": license_name,
         }
-    
+
     def download_repository(self, owner: str, repo: str, destination: str, branch: Optional[str] = None) -> None:
         """
         Baixa o código fonte do repositório em formato ZIP uitilizando stream
@@ -91,7 +92,7 @@ class GitHubClient:
             raise GitHubAPIError(
                 f"Erro ao baixar o repositório {owner}/{repo} (Status {response.status_code}): {response.text}"
             )
-        
+
         with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp_file:
             for chunk in response.iter_content(chunk_size=8192):
                 if chunk:
@@ -112,7 +113,7 @@ class GitHubClient:
         branches_data = self._get(endpoint)
 
         return [branch["name"] for branch in branches_data]
-    
+
     def get_commits(
         self,
         owner: str,

@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 from src.codetwin_analyzer.parser import ClonePair, classify_clone_type
 
+
 @dataclass
 class CloneMetrics:
     """Armazena as estatísticas e métricas gerais dos clones detectados."""
@@ -15,6 +16,7 @@ class CloneMetrics:
     type2_count: int
     total_files_affected: int
     total_lines_duplicated: int
+
 
 def _unique_fragment_lines(clone_pairs: List[ClonePair]) -> int:
     """Soma as linhas dos fragmentos únicos para evitar double-counting
@@ -61,6 +63,7 @@ def compute_clone_counts(clone_pairs: List[ClonePair]) -> CloneMetrics:
         total_lines_duplicated=total_lines_duplicated,
     )
 
+
 def most_cloned_files(clone_pairs: List[ClonePair], top_n: int = 10) -> List[Tuple[str, int]]:
     """
     Conta quantos blocos clonados únicos cada arquivo possui.
@@ -78,6 +81,7 @@ def most_cloned_files(clone_pairs: List[ClonePair], top_n: int = 10) -> List[Tup
                 file_counter[frag.source_file] += 1
 
     return file_counter.most_common(top_n)
+
 
 def most_cloned_functions(clone_pairs: List[ClonePair], top_n: int = 10) -> List[Tuple[str, int]]:
     """
@@ -103,6 +107,7 @@ def most_cloned_functions(clone_pairs: List[ClonePair], top_n: int = 10) -> List
                     function_counter[func_name] += 1
 
     return function_counter.most_common(top_n)
+
 
 def clone_density(clone_pairs: List[ClonePair], total_lines: int) -> float:
     """
