@@ -6,9 +6,14 @@ with open("requirements.txt", "r", encoding="utf-8") as f:
 
 setup(
     name="codetwin-analyzer",
-    version="0.1.0",
+    version="0.2.0",
     package_dir={"": "src"},
     packages=find_packages(where="src"),
     install_requires=requirements,
-    python_requires=">=3.9"
+    python_requires=">=3.9",
+    entry_points={
+        "console_scripts": [
+            "codetwin-analyzer=codetwin_analyzer.cli:main"
+        ]
+    }
 )

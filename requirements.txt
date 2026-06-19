@@ -1,5 +1,4 @@
 requests
-pyyaml
-pytest
 python-dotenv
-python-fire
+fire
+pytest
