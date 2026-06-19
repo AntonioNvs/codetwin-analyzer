@@ -351,6 +351,134 @@ class CodeTwinCLI:
         except Exception as e:
             self._handle_common_exceptions(e)
 
+    def report(
+        self,
+        repo_url: str,
+        min_tokens: int = 100,
+        with_history: bool = True,
+        format: str = "text",
+        output: Optional[str] = None
+    ):
+        """Executa um pipeline completo gerando um relatório."""
+        logger.info(f"Iniciando pipeline de relatório para: {repo_url}")
+
+        sanitized_name = sanitize_repo_name(repo_url)
+        try:
+            owner, repo = sanitized_name.split("/")
+        except ValueError:
+            logger.error("Erro: URL do repositório inválida.")
+            sys.exit(1)
+
+        xml_output = "cpd_report_temp.xml"
+        metrics = None
+        pairs = []
+        hist_entries = None
+        
+        status = {
+            "download": "Pendente",
+            "cpd": "Pendente",
+            "parse": "Pendente",
+            "metrics": "Pendente",
+            "history": "Pendente" if with_history else "Ignorado",
+            "export": "Pendente"
+        }
+
+        try:
+            github_client = GitHubClient()
+            cpd_runner = CPDRunner()
+
+            with temp_dir() as tmpdir:
+                try:
+                    logger.info("[1/5] Baixando código-fonte...")
+                    github_client.download_repository(owner, repo, destination=tmpdir)
+                    status["download"] = "Sucesso"
+                except Exception as e:
+                    status["download"] = f"Falha ({e})"
+
+                if status["download"] == "Sucesso":
+                    try:
+                        logger.info("[2/5] Detectando linguagem e executando PMD CPD...")
+                        cpd_runner.run_with_auto_detect(tmpdir, xml_output, min_tokens)
+                        status["cpd"] = "Sucesso"
+                    except Exception as e:
+                        status["cpd"] = f"Falha ({e})"
+                else:
+                    status["cpd"] = "Ignorado"
+
+                if status["cpd"] == "Sucesso":
+                    try:
+                        logger.info("[3/5] Processando resultados do CPD...")
+                        fragments = parse_cpd_xml(xml_output)
+                        if fragments:
+                            pairs = group_into_pairs(fragments)
+                        status["parse"] = "Sucesso"
+                    except Exception as e:
+                        status["parse"] = f"Falha ({e})"
+                else:
+                    status["parse"] = "Ignorado"
+
+                if status["parse"] == "Sucesso":
+                    try:
+                        logger.info("[4/5] Calculando métricas...")
+                        if pairs:
+                            metrics = compute_clone_counts(pairs)
+                        status["metrics"] = "Sucesso"
+                    except Exception as e:
+                        status["metrics"] = f"Falha ({e})"
+                else:
+                    status["metrics"] = "Ignorado"
+
+            if with_history:
+                try:
+                    logger.info("[5/5] Rastreando histórico de clones...")
+                    clone_history = CloneHistory(github_client)
+                    hist_entries = clone_history.track_default_branch_history(
+                        owner, repo, depth=20, min_tokens=min_tokens
+                    )
+                    status["history"] = "Sucesso"
+                except Exception as e:
+                    status["history"] = f"Falha ({e})"
+            else:
+                logger.info("[5/5] Histórico ignorado (with_history=False).")
+
+            try:
+                logger.info("Exportando relatório final...")
+                exporter = CloneExporter()
+                if output:
+                    if format == "json":
+                        exporter.to_json({"metrics": metrics, "history": hist_entries}, output)
+                    elif format == "csv":
+                        if pairs:
+                            exporter.to_csv(pairs, output)
+                        else:
+                            logger.warning("Nenhum clone para exportar em CSV.")
+                    elif format == "html":
+                        exporter.to_html_report(metrics, pairs, hist_entries, output)
+                    else:
+                        exporter.to_text_report(metrics, pairs, hist_entries, output)
+                    logger.info(f"Relatório exportado para: {output}")
+                else:
+                    if format == "json":
+                        print(exporter.to_json({"metrics": metrics, "history": hist_entries}))
+                    elif format == "csv":
+                        logger.error("Formato CSV requer um arquivo de saída (--output).")
+                    elif format == "html":
+                        print(exporter.to_html_report(metrics, pairs, hist_entries))
+                    else:
+                        print("\n" + exporter.to_text_report(metrics, pairs, hist_entries))
+                status["export"] = "Sucesso"
+            except Exception as e:
+                status["export"] = f"Falha ({e})"
+
+        finally:
+            Path(xml_output).unlink(missing_ok=True)
+            print("\n" + "=" * 50)
+            print(" STATUS DO PIPELINE DE RELATÓRIO")
+            print("=" * 50)
+            for step, res in status.items():
+                print(f" {step.capitalize():<10}: {res}")
+            print("=" * 50)
+
 
 def main():
     """Ponto de entrada principal para a CLI."""
