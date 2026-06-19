@@ -42,8 +42,14 @@ class CPDRunner:
             ".cs": "cs",
             ".c": "c",
             ".cpp": "cpp",
+            ".hpp": "cpp",
+            ".c++": "cpp",
             ".go": "go",
-            ".rb": "ruby"
+            ".rb": "ruby",
+            ".kt": "kotlin",
+            ".swift": "swift",
+            ".php": "php",
+            ".r": "r"
         }
 
         ext_counts = Counter()
