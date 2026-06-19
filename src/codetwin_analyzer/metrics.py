@@ -33,9 +33,14 @@ def _unique_fragment_lines(clone_pairs: List[ClonePair]) -> int:
 
 
 def compute_clone_counts(clone_pairs: List[ClonePair]) -> CloneMetrics:
-    """
-    Itera sobre os pares de clones, classifica cada um deles e
+    """Itera sobre os pares de clones, classifica cada um deles e
     acumula as métricas gerais do repositório.
+
+    Args:
+        clone_pairs (List[ClonePair]): Lista de pares de clones analisados.
+
+    Returns:
+        CloneMetrics: Objeto contendo as estatísticas gerais agregadas.
     """
     type1_count = 0
     type2_count = 0
@@ -65,10 +70,17 @@ def compute_clone_counts(clone_pairs: List[ClonePair]) -> CloneMetrics:
 
 
 def most_cloned_files(clone_pairs: List[ClonePair], top_n: int = 10) -> List[Tuple[str, int]]:
-    """
-    Conta quantos blocos clonados únicos cada arquivo possui.
+    """Conta quantos blocos clonados únicos cada arquivo possui.
+    
     Deduplica por (source_file, begin_line, end_line) para evitar
     inflação quando um fragmento aparece em múltiplos pares do mesmo grupo.
+
+    Args:
+        clone_pairs (List[ClonePair]): Lista de pares de clones analisados.
+        top_n (int, optional): Número máximo de arquivos a retornar no top. Default é 10.
+
+    Returns:
+        List[Tuple[str, int]]: Lista contendo tuplas com (nome do arquivo, quantidade de blocos clonados).
     """
     file_counter = Counter()
     seen = set()
@@ -84,10 +96,17 @@ def most_cloned_files(clone_pairs: List[ClonePair], top_n: int = 10) -> List[Tup
 
 
 def most_cloned_functions(clone_pairs: List[ClonePair], top_n: int = 10) -> List[Tuple[str, int]]:
-    """
-    Busca assinaturas de funções (Python, JS, TS, PHP, etc.) dentro dos
+    """Busca assinaturas de funções (Python, JS, TS, PHP, etc.) dentro dos
     snippets clonados usando Regex e retorna as Top N funções mais clonadas.
+
     Deduplica fragmentos por (source_file, begin_line, end_line).
+
+    Args:
+        clone_pairs (List[ClonePair]): Lista de pares de clones.
+        top_n (int, optional): Limite de funções a serem retornadas. Default é 10.
+
+    Returns:
+        List[Tuple[str, int]]: Lista de tuplas com (nome da função, quantidade de clones).
     """
     function_counter = Counter()
     func_pattern = re.compile(r"def\s+(\w+)|function\s+(\w+)")
@@ -110,9 +129,15 @@ def most_cloned_functions(clone_pairs: List[ClonePair], top_n: int = 10) -> List
 
 
 def clone_density(clone_pairs: List[ClonePair], total_lines: int) -> float:
-    """
-    Calcula a razão (densidade) entre as linhas duplicadas e o total
+    """Calcula a razão (densidade) entre as linhas duplicadas e o total
     de linhas do repositório/projeto analisado.
+
+    Args:
+        clone_pairs (List[ClonePair]): Lista de pares de clones.
+        total_lines (int): Total de linhas de código fonte do repositório inteiro.
+
+    Returns:
+        float: Razão calculada entre as linhas duplicadas únicas e o total_lines.
     """
     if total_lines <= 0:
         return 0.0
@@ -122,11 +147,16 @@ def clone_density(clone_pairs: List[ClonePair], total_lines: int) -> float:
 
 
 def statistical_summary(clone_pairs: List[ClonePair]) -> Dict[str, Any]:
-    """
-    Calcula estatísticas descritivas dos tamanhos (em linhas) dos clones detectados.
+    """Calcula estatísticas descritivas dos tamanhos (em linhas) dos clones detectados.
+    
     Retorna um dicionário com média, mediana, desvio padrão, mínimo, máximo,
-    total de arquivos únicos e razões por tipo.
-    Trata lista vazia retornando zeros em todos os campos numéricos.
+    total de arquivos únicos e razões por tipo. Trata lista vazia retornando zeros em todos os campos numéricos.
+
+    Args:
+        clone_pairs (List[ClonePair]): Lista de pares de clones detectados.
+
+    Returns:
+        Dict[str, Any]: Dicionário com métricas estatísticas detalhadas.
     """
     _EMPTY: Dict[str, Any] = {
         "mean_clone_size": 0.0,
@@ -174,10 +204,15 @@ def statistical_summary(clone_pairs: List[ClonePair]) -> Dict[str, Any]:
 
 
 def inter_file_similarity(clone_pairs: List[ClonePair]) -> Dict[str, Dict[str, float]]:
-    """
-    Calcula um score de similaridade entre pares de arquivos.
+    """Calcula um score de similaridade entre pares de arquivos.
+    
     Para cada par (A, B): score = (2 * linhas_duplicadas_AB) / (total_linhas_A + total_linhas_B).
-    Retorna nested dict: {arquivo_a: {arquivo_b: score}}.
+
+    Args:
+        clone_pairs (List[ClonePair]): Pares de clones para análise.
+
+    Returns:
+        Dict[str, Dict[str, float]]: Nested dict no formato {arquivo_a: {arquivo_b: score}}.
     """
     shared: Dict[tuple, int] = {}
     totals: Dict[str, int] = {}
@@ -203,11 +238,15 @@ def inter_file_similarity(clone_pairs: List[ClonePair]) -> Dict[str, Dict[str, f
 
 
 def token_overlap_matrix(clone_pairs: List[ClonePair]) -> Dict[str, Dict[str, float]]:
-    """
-    Calcula a similaridade de Jaccard entre os conjuntos de tokens de cada par de arquivos.
-    Jaccard(A, B) = |A ∩ B| / |A ∪ B|.
-    Os tokens são extraídos dos code_snippets de cada fragmento.
-    Retorna nested dict: {arquivo_a: {arquivo_b: jaccard}}.
+    """Calcula a similaridade de Jaccard entre os conjuntos de tokens de cada par de arquivos.
+    
+    Jaccard(A, B) = |A ∩ B| / |A ∪ B|. Os tokens são extraídos dos code_snippets de cada fragmento.
+
+    Args:
+        clone_pairs (List[ClonePair]): Lista de pares de clones encontrados.
+
+    Returns:
+        Dict[str, Dict[str, float]]: Nested dict de overlap no formato {arquivo_a: {arquivo_b: jaccard}}.
     """
     file_tokens: Dict[str, set] = {}
 
@@ -236,10 +275,17 @@ def repository_clone_index(
     total_files: int,
     total_lines: int,
 ) -> float:
-    """
-    Calcula um índice único (0 a 1) que representa o grau geral de clonagem do repositório.
+    """Calcula um índice único (0 a 1) que representa o grau geral de clonagem do repositório.
+    
     Combina a densidade de linhas duplicadas com a proporção de arquivos afetados.
-    Retorna 0.0 se não houver clones ou os totais forem inválidos.
+
+    Args:
+        clone_pairs (List[ClonePair]): Lista de pares de clones.
+        total_files (int): Número total de arquivos varridos no repositório.
+        total_lines (int): Total de linhas dos arquivos varridos.
+
+    Returns:
+        float: Índice de clonagem (0.0 a 1.0). Retorna 0.0 se não houver clones ou os totais forem inválidos.
     """
     if not clone_pairs or total_files <= 0 or total_lines <= 0:
         return 0.0
@@ -256,9 +302,13 @@ def repository_clone_index(
 
 
 def file_level_clone_matrix(clone_pairs: List[ClonePair]) -> Dict[str, Dict[str, int]]:
-    """
-    Constrói uma matriz NxN (nested dict) com o número de pares clonados entre cada par de arquivos.
-    Retorna {arquivo_a: {arquivo_b: contagem}} (simétrico).
+    """Constrói uma matriz NxN (nested dict) com o número de pares clonados entre cada par de arquivos.
+
+    Args:
+        clone_pairs (List[ClonePair]): Lista contendo os pares de clones detectados.
+
+    Returns:
+        Dict[str, Dict[str, int]]: Nested dict no formato {arquivo_a: {arquivo_b: contagem}} (simétrico).
     """
     matrix: Dict[str, Dict[str, int]] = {}
 
@@ -275,10 +325,15 @@ def file_level_clone_matrix(clone_pairs: List[ClonePair]) -> Dict[str, Dict[str,
 
 
 def clone_coverage_per_file(clone_pairs: List[ClonePair]) -> Dict[str, float]:
-    """
-    Calcula a porcentagem de linhas duplicadas por arquivo.
+    """Calcula a porcentagem de linhas duplicadas por arquivo.
+    
     Usa o maior end_line observado como proxy do tamanho do arquivo.
-    Retorna {arquivo: percentual (0.0 a 100.0)}.
+
+    Args:
+        clone_pairs (List[ClonePair]): Lista de pares clonados analisados.
+
+    Returns:
+        Dict[str, float]: Dicionário contendo {arquivo: percentual (0.0 a 100.0)}.
     """
     duplicated: Dict[str, set] = {}
     file_max_line: Dict[str, int] = {}
@@ -302,9 +357,14 @@ def top_clone_files_by_type(
     clone_pairs: List[ClonePair],
     top_n: int = 10,
 ) -> Dict[str, List[Tuple[str, int]]]:
-    """
-    Retorna rankings separados dos arquivos mais clonados para Tipo 1 e Tipo 2.
-    Retorna {\"Tipo 1\": [(arquivo, contagem), ...], \"Tipo 2\": [(arquivo, contagem), ...]}.
+    """Retorna rankings separados dos arquivos mais clonados para Tipo 1 e Tipo 2.
+
+    Args:
+        clone_pairs (List[ClonePair]): Lista de clones já classificados por tipo.
+        top_n (int, optional): Tamanho do ranking para cada tipo. Default é 10.
+
+    Returns:
+        Dict[str, List[Tuple[str, int]]]: Dict no formato {"Tipo 1": [(arquivo, contagem), ...], "Tipo 2": [(arquivo, contagem), ...]}.
     """
     counters: Dict[str, Counter] = {"Tipo 1": Counter(), "Tipo 2": Counter()}
 

@@ -13,9 +13,15 @@ class CPDExecutionError(Exception):
 
 class CPDRunner:
     def __init__(self, pmd_path: Optional[str] = None):
-        """
-        Inicializa o runner do PMD CPD.
+        """Inicializa o runner do PMD CPD.
+        
         Se o caminho para o PMD não for fornecido, tenta localizá-lo no PATH do sistema.
+
+        Args:
+            pmd_path (Optional[str]): O caminho para o executável do PMD. Default é None.
+
+        Raises:
+            FileNotFoundError: Se o PMD não for encontrado no sistema.
         """
         self.pmd_path = pmd_path or shutil.which("pmd")
 
@@ -31,8 +37,13 @@ class CPDRunner:
             )
 
     def detect_language(self, source_dir: Union[str, Path]) -> Optional[str]:
-        """
-        Varre o diretório, mapeia as extensões e retorna a linguagem mais comum.
+        """Varre o diretório, mapeia as extensões e retorna a linguagem mais comum.
+
+        Args:
+            source_dir (Union[str, Path]): Caminho do diretório a ser analisado.
+
+        Returns:
+            Optional[str]: O nome da linguagem detectada (ex: 'python', 'java') ou None.
         """
         ext_mapping = {
             ".py": "python",
@@ -76,9 +87,17 @@ class CPDRunner:
         min_tokens: int = 100,
         language: Optional[str] = None
     ) -> None:
-        """
-        Executa o PMD Copy-Paste-Detector (CPD) no diretório especificado
+        """Executa o PMD Copy-Paste-Detector (CPD) no diretório especificado
         e salva a saída em um arquivo XML.
+
+        Args:
+            source_dir (Union[str, Path]): Diretório contendo os códigos fontes.
+            output_file (Union[str, Path]): Caminho para o arquivo XML de saída.
+            min_tokens (int): Mínimo de tokens repetidos para identificar um clone. Default é 100.
+            language (Optional[str]): Linguagem a ser forçada na verificação. Default é None.
+
+        Raises:
+            CPDExecutionError: Se ocorrer um erro durante a execução do PMD.
         """
         cmd = [
             self.pmd_path, "cpd",
@@ -114,8 +133,15 @@ class CPDRunner:
         output_file: Union[str, Path],
         min_tokens: int = 100
     ) -> None:
-        """
-        Detecta automaticamente a linguagem do repositório e executa o CPD.
+        """Detecta automaticamente a linguagem do repositório e executa o CPD.
+
+        Args:
+            source_dir (Union[str, Path]): Diretório contendo os códigos fontes.
+            output_file (Union[str, Path]): Caminho para o arquivo XML de saída.
+            min_tokens (int): Mínimo de tokens repetidos para identificar um clone. Default é 100.
+
+        Raises:
+            ValueError: Caso nenhuma linguagem seja detectada automaticamente.
         """
         language = self.detect_language(source_dir)
 

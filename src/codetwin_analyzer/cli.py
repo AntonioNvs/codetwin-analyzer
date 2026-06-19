@@ -40,7 +40,12 @@ class ColorFormatter(logging.Formatter):
 
 
 def setup_logging(verbose: bool, quiet: bool):
-    """Configura os handlers de log para o console e para o arquivo."""
+    """Configura os handlers de log para o console e para o arquivo.
+
+    Args:
+        verbose (bool): Se True, ativa logs detalhados de depuração (DEBUG).
+        quiet (bool): Se True, suprime mensagens informativas (mostra apenas WARNING+).
+    """
     if logger.hasHandlers():
         logger.handlers.clear()
 
@@ -71,14 +76,13 @@ class CodeTwinCLI:
     """Interface de Linha de Comando (CLI) para o CodeTwin Analyzer."""
 
     def __init__(self, verbose: bool = False, quiet: bool = False, progress: bool = False):
-        """
-        Inicializa a CLI e configura o nível de verbosidade dos logs.
+        """Inicializa a CLI e configura o nível de verbosidade dos logs.
 
-        Args:
-            verbose: Ativa logs detalhados de depuração (DEBUG) no console.
-            quiet: Suprime mensagens informativas, mostrando apenas avisos/erros (WARNING).
-            progress: Exibe o progresso das etapas (1/5, etc.) nos comandos.
-        """
+    Args:
+        verbose (bool): Ativa logs detalhados de depuração (DEBUG) no console.
+        quiet (bool): Suprime mensagens informativas, mostrando apenas avisos/erros (WARNING).
+        progress (bool): Exibe o progresso das etapas (1/5, etc.) nos comandos.
+    """
         setup_logging(verbose, quiet)
         self.progress = progress
         logger.debug("CodeTwin CLI instanciada (verbose=%s, quiet=%s, progress=%s)", verbose, quiet, progress)
@@ -87,7 +91,11 @@ class CodeTwinCLI:
         return f"[{step}/{total}] " if self.progress else ""
 
     def _handle_common_exceptions(self, exc: Exception):
-        """Método auxiliar para centralizar as mensagens de erro amigáveis."""
+        """Método auxiliar para centralizar as mensagens de erro amigáveis.
+
+        Args:
+            exc (Exception): A exceção levantada durante a execução da CLI.
+        """
         if isinstance(exc, GitHubAPIError):
             logger.error(f"Erro na API do GitHub: {exc}\n  -> Sugestão: Verifique se o repositório existe e se o seu GITHUB_TOKEN (se aplicável) tem permissão de leitura.")
         elif isinstance(exc, SEARTAPIError):
@@ -116,7 +124,16 @@ class CodeTwinCLI:
         output: Optional[str] = None,
         history: bool = False
     ):
-        """Analisa um repositório do GitHub em busca de código duplicado."""
+        """Analisa um repositório do GitHub em busca de código duplicado.
+
+        Args:
+            repo_url (str): A URL do repositório a ser analisado.
+            min_tokens (int, optional): Mínimo de tokens para detectar um clone. Default é 100.
+            language (Optional[str], optional): Força a detecção com uma linguagem específica.
+            format (str, optional): Formato de saída (text, json, csv, html). Default é 'text'.
+            output (Optional[str], optional): Caminho do arquivo de saída.
+            history (bool, optional): Se True, rastreia o histórico de clones da branch principal.
+        """
         logger.info(f"Iniciando análise para: {repo_url}")
 
         sanitized_name = sanitize_repo_name(repo_url)
@@ -190,7 +207,12 @@ class CodeTwinCLI:
             self._handle_common_exceptions(e)
 
     def metrics(self, repo_url: str, min_tokens: int = 100):
-        """Extrai um painel detalhado de métricas e densidade de clones de um repositório."""
+        """Extrai um painel detalhado de métricas e densidade de clones de um repositório.
+
+        Args:
+            repo_url (str): A URL do repositório a ser analisado.
+            min_tokens (int, optional): Mínimo de tokens para detectar um clone. Default é 100.
+        """
         logger.info(f"Extraindo métricas avançadas para: {repo_url}")
 
         sanitized_name = sanitize_repo_name(repo_url)
@@ -291,7 +313,14 @@ class CodeTwinCLI:
             self._handle_common_exceptions(e)
 
     def search(self, language: str, min_stars: int = 10, max_results: int = 10, analyze: bool = False):
-        """Busca repositórios via SEART GHS e, opcionalmente, faz uma análise em lote."""
+        """Busca repositórios via SEART GHS e, opcionalmente, faz uma análise em lote.
+
+        Args:
+            language (str): Linguagem de programação para filtrar repositórios.
+            min_stars (int, optional): Número mínimo de estrelas. Default é 10.
+            max_results (int, optional): Quantidade máxima de resultados. Default é 10.
+            analyze (bool, optional): Se True, roda a análise (CPD) para cada repositório encontrado.
+        """
         logger.info(f"Buscando repositórios de '{language}' (Min. Stars: {min_stars})...")
 
         try:
@@ -337,7 +366,13 @@ class CodeTwinCLI:
             self._handle_common_exceptions(e)
 
     def history(self, repo_url: str, depth: int = 20, min_tokens: int = 100):
-        """Analisa o histórico de clones da branch default e exibe a tendência."""
+        """Analisa o histórico de clones da branch default e exibe a tendência.
+
+        Args:
+            repo_url (str): A URL do repositório.
+            depth (int, optional): Número de commits a analisar no histórico. Default é 20.
+            min_tokens (int, optional): Número de tokens para considerar um clone. Default é 100.
+        """
         logger.info(f"Iniciando análise de histórico para: {repo_url} (depth={depth})")
 
         sanitized_name = sanitize_repo_name(repo_url)
@@ -382,7 +417,15 @@ class CodeTwinCLI:
         format: str = "text",
         output: Optional[str] = None
     ):
-        """Executa um pipeline completo gerando um relatório."""
+        """Executa um pipeline completo gerando um relatório.
+
+        Args:
+            repo_url (str): A URL do repositório a analisar.
+            min_tokens (int, optional): Tokens mínimos para a detecção de clones. Default é 100.
+            with_history (bool, optional): Se deve realizar a análise de histórico. Default é True.
+            format (str, optional): Formato do relatório de saída (ex: 'html', 'json'). Default é 'text'.
+            output (Optional[str], optional): Arquivo onde o relatório será salvo.
+        """
         logger.info(f"Iniciando pipeline de relatório para: {repo_url}")
 
         sanitized_name = sanitize_repo_name(repo_url)

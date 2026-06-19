@@ -11,9 +11,7 @@ class SEARTAPIError(Exception):
 
 class SEARTClient:
     def __init__(self):
-        """
-        Inicializa o cliente da API SEART GitHub Search (GHS).
-        """
+        """Inicializa o cliente da API SEART GitHub Search (GHS)."""
         self.base_url = "https://seart-ghs.si.usi.ch/api"
         self.session = requests.Session()
 
@@ -32,8 +30,23 @@ class SEARTClient:
         max_size_kb: Optional[int] = None,
         license_filter: Optional[str] = None
     ) -> List[str]:
-        """
-        Busca repositórios no SEART GHS com múltiplos filtros e mecanismo de retry (backoff).
+        """Busca repositórios no SEART GHS com múltiplos filtros e mecanismo de retry (backoff).
+
+        Args:
+            language (str): A linguagem de programação para filtro principal.
+            min_stars (int, optional): Número mínimo de estrelas do repositório. Default é 0.
+            max_results (int, optional): Número máximo de resultados retornados. Default é 100.
+            created_after (str, optional): Filtra repositórios criados após esta data (ISO 8601).
+            created_before (str, optional): Filtra repositórios criados antes desta data (ISO 8601).
+            min_size_kb (int, optional): Tamanho mínimo do repositório em KB.
+            max_size_kb (int, optional): Tamanho máximo do repositório em KB.
+            license_filter (str, optional): Filtra repositórios pela licença.
+
+        Returns:
+            List[str]: Lista contendo o nome completo (owner/repo) dos repositórios encontrados.
+
+        Raises:
+            SEARTAPIError: Caso ocorra um erro na requisição à API (status 400 ou 500) após as tentativas.
         """
         endpoint = f"{self.base_url}/v1/search/repositories"
 

@@ -36,10 +36,15 @@ def _extract_namespace(root_tag: str) -> str:
 
 
 def parse_cpd_xml(file_path: Union[str, Path]) -> List[CloneFragment]:
-    """
-    Lê o arquivo XML gerado pelo PMD CPD, extrai os elementos <duplication>
+    """Lê o arquivo XML gerado pelo PMD CPD, extrai os elementos <duplication>
     e retorna uma lista achatada de CloneFragments.
     Suporta XML com e sem namespace (PMD 6.x e 7.x).
+
+    Args:
+        file_path (Union[str, Path]): Caminho para o arquivo XML de saída do PMD.
+
+    Returns:
+        List[CloneFragment]: Lista contendo todos os fragmentos de clones isolados.
     """
     fragments = []
 
@@ -83,11 +88,17 @@ def parse_cpd_xml(file_path: Union[str, Path]) -> List[CloneFragment]:
 
 
 def group_into_pairs(fragments: List[CloneFragment]) -> List[ClonePair]:
-    """
-    Recebe a lista achatada de fragmentos e os agrupa em pares (ClonePair).
+    """Recebe a lista achatada de fragmentos e os agrupa em pares (ClonePair).
+
     Agrupa por duplication_id, que preserva o agrupamento original de cada
     elemento <duplication> do XML — evitando que duplicações independentes
     com o mesmo snippet sejam mescladas indevidamente.
+
+    Args:
+        fragments (List[CloneFragment]): Lista com fragmentos soltos gerados pelo parser.
+
+    Returns:
+        List[ClonePair]: Lista de pares de clones agrupados de acordo com o duplication_id.
     """
     groups = defaultdict(list)
     for frag in fragments:
@@ -108,10 +119,12 @@ def group_into_pairs(fragments: List[CloneFragment]) -> List[ClonePair]:
 
 
 def classify_clone_type(pair: ClonePair) -> None:
-    """
-    Analisa os arquivos físicos de um par de clones no disco e classifica:
+    """Analisa os arquivos físicos de um par de clones no disco e classifica:
     - Tipo 1: Código exato (ignorando espaços/quebras de linha).
     - Tipo 2: Estrutura idêntica, mas variáveis/literais diferentes.
+
+    Args:
+        pair (ClonePair): Um objeto do tipo ClonePair que terá seu atributo 'type' atualizado in-place.
     """
     def extract_code_from_file(file_path: str, begin_line: int, end_line: int) -> Optional[str]:
         """Lê as linhas exatas de um arquivo no disco."""

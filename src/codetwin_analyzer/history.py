@@ -68,19 +68,18 @@ class CloneHistory:
         temp_dir: str,
         min_tokens: int = 100,
     ) -> dict:
-        """
-        Baixa o repositório no estado de um commit específico, executa o CPD
+        """Baixa o repositório no estado de um commit específico, executa o CPD
         e retorna as contagens de clones por tipo.
 
         Args:
-            owner: Proprietário do repositório no GitHub.
-            repo: Nome do repositório.
-            commit_sha: SHA do commit a ser analisado.
-            temp_dir: Diretório temporário onde o repositório será extraído.
-            min_tokens: Número mínimo de tokens para o CPD considerar um clone.
+            owner (str): Proprietário do repositório no GitHub.
+            repo (str): Nome do repositório.
+            commit_sha (str): SHA do commit a ser analisado.
+            temp_dir (str): Diretório temporário onde o repositório será extraído.
+            min_tokens (int): Número mínimo de tokens para o CPD considerar um clone.
 
         Returns:
-            Dict com chaves 'type1_count', 'type2_count' e 'total_clones'.
+            dict: Dict com chaves 'type1_count', 'type2_count' e 'total_clones'.
         """
         import os
 
@@ -131,23 +130,21 @@ class CloneHistory:
         max_commits: int = 50,
         min_tokens: int = 100,
     ) -> List[HistoryEntry]:
-        """
-        Rastreia clones de código em um intervalo de commits do repositório.
+        """Rastreia clones de código em um intervalo de commits do repositório.
 
         Para cada commit no intervalo: baixa o repositório, executa o CPD e
-        armazena um HistoryEntry. Commits sem arquivos analisáveis recebem
-        contagem zero e são pulados com aviso de log.
+        armazena um HistoryEntry.
 
         Args:
-            owner: Proprietário do repositório no GitHub.
-            repo: Nome do repositório.
-            since: Data ISO 8601 de início do intervalo (opcional).
-            until: Data ISO 8601 de fim do intervalo (opcional).
-            max_commits: Número máximo de commits a analisar.
-            min_tokens: Número mínimo de tokens para o CPD.
+            owner (str): Proprietário do repositório no GitHub.
+            repo (str): Nome do repositório.
+            since (Optional[str]): Data ISO 8601 de início do intervalo.
+            until (Optional[str]): Data ISO 8601 de fim do intervalo.
+            max_commits (int): Número máximo de commits a analisar.
+            min_tokens (int): Número mínimo de tokens para o CPD.
 
         Returns:
-            Lista de HistoryEntry gerada nesta chamada.
+            List[HistoryEntry]: Lista de HistoryEntry gerada nesta chamada.
         """
         commits = self.github_client.get_commits(owner, repo, since=since, until=until)
         commits = commits[:max_commits]
@@ -201,21 +198,16 @@ class CloneHistory:
         branches: List[str],
         min_tokens: int = 100,
     ) -> BranchComparison:
-        """
-        Detecta clones na ponta de cada branch informada e compara as contagens.
-
-        Para cada branch, baixa o repositório no seu estado mais recente, executa
-        o CPD e registra as contagens. O campo diff_pairs indica a diferença absoluta
-        de total_clones entre cada par de branches.
+        """Detecta clones na ponta de cada branch informada e compara as contagens.
 
         Args:
-            owner: Proprietário do repositório no GitHub.
-            repo: Nome do repositório.
-            branches: Lista de nomes de branches a comparar.
-            min_tokens: Número mínimo de tokens para o CPD.
+            owner (str): Proprietário do repositório no GitHub.
+            repo (str): Nome do repositório.
+            branches (List[str]): Lista de nomes de branches a comparar.
+            min_tokens (int): Número mínimo de tokens para o CPD.
 
         Returns:
-            BranchComparison com contagens por branch e diffs entre pares.
+            BranchComparison: BranchComparison com contagens por branch e diffs entre pares.
         """
         clone_counts: Dict[str, int] = {}
         type1_counts: Dict[str, int] = {}
@@ -257,20 +249,16 @@ class CloneHistory:
         depth: int = 20,
         min_tokens: int = 100,
     ) -> List[HistoryEntry]:
-        """
-        Analisa os últimos N commits da branch default do repositório.
-
-        Atalho conveniente que resolve a branch padrão via GitHubClient e
-        delega para track_commit_range com max_commits=depth.
+        """Analisa os últimos N commits da branch default do repositório.
 
         Args:
-            owner: Proprietário do repositório no GitHub.
-            repo: Nome do repositório.
-            depth: Número de commits recentes a analisar (padrão: 20).
-            min_tokens: Número mínimo de tokens para o CPD.
+            owner (str): Proprietário do repositório no GitHub.
+            repo (str): Nome do repositório.
+            depth (int): Número de commits recentes a analisar (padrão: 20).
+            min_tokens (int): Número mínimo de tokens para o CPD.
 
         Returns:
-            Lista de HistoryEntry gerada nesta chamada.
+            List[HistoryEntry]: Lista de HistoryEntry gerada nesta chamada.
         """
         default_branch = self.github_client.get_default_branch(owner, repo)
         logger.info(
@@ -284,12 +272,10 @@ class CloneHistory:
     def to_time_series(
         self,
     ) -> List[Tuple[str, int, int]]:
-        """
-        Converte as entradas do histórico em série temporal ordenada.
+        """Converte as entradas do histórico em série temporal ordenada.
 
         Returns:
-            Lista de tuplas (timestamp, type1_count, type2_count) ordenada
-            cronologicamente pelo timestamp ISO 8601.
+            List[Tuple[str, int, int]]: Lista de tuplas (timestamp, type1_count, type2_count) ordenada.
         """
         sorted_entries = sorted(
             self.entries,
@@ -298,14 +284,10 @@ class CloneHistory:
         return [(e.timestamp, e.type1_count, e.type2_count) for e in sorted_entries]
 
     def compute_trend(self) -> TrendResult:
-        """
-        Calcula a tendência temporal de clones por tipo usando regressão linear.
-
-        A regressão é calculada manualmente via somatórios (sem dependências externas).
-        Para menos de 2 pontos, retorna slope=0.0 e tendência 'estável'.
+        """Calcula a tendência temporal de clones por tipo usando regressão linear.
 
         Returns:
-            TrendResult com slope e classificação de tendência para Tipo 1 e Tipo 2.
+            TrendResult: TrendResult com slope e classificação de tendência para Tipo 1 e Tipo 2.
         """
         series = self.to_time_series()
         n = len(series)

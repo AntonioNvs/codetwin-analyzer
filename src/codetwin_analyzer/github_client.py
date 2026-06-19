@@ -14,9 +14,12 @@ class GitHubAPIError(Exception):
 
 class GitHubClient:
     def __init__(self, token: Optional[str] = None):
-        """
-        Inicializa o clienta da API do GitHub.
+        """Inicializa o clienta da API do GitHub.
+
         Se o token não for passado, tenta ler da variável de ambiente GITHUB_TOKEN.
+
+        Args:
+            token (Optional[str]): Token de autenticação do GitHub. Default é None.
         """
         self.token = token or os.environ.get("GITHUB_TOKEN")
         self.base_url = "https://api.github.com"
@@ -32,9 +35,19 @@ class GitHubClient:
             })
 
     def _get(self, url: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """
-        Faz uma requisição GET. Se a URL for um caminho relativo (ex: /repos/...),
-        concatena com a base_url. Levanta GitHubAPIError se o status não for 200.
+        """Faz uma requisição GET. 
+        
+        Se a URL for um caminho relativo (ex: /repos/...), concatena com a base_url.
+
+        Args:
+            url (str): A URL ou endpoint para a requisição.
+            params (Optional[Dict[str, Any]]): Parâmetros da query string.
+
+        Returns:
+            Dict[str, Any]: Dicionário com o JSON de resposta da API.
+
+        Raises:
+            GitHubAPIError: Se o status da requisição não for 200.
         """
         if url.startswith("/"):
             url = f"{self.base_url}{url}"
@@ -49,16 +62,28 @@ class GitHubClient:
         return response.json()
 
     def get_default_branch(self, owner: str, repo: str) -> str:
-        """
-        Obtém a branch padrão (default_branch) de um repositório.
+        """Obtém a branch padrão (default_branch) de um repositório.
+
+        Args:
+            owner (str): O proprietário do repositório no GitHub.
+            repo (str): O nome do repositório no GitHub.
+
+        Returns:
+            str: O nome da branch padrão.
         """
         endpoint = f"/repos/{owner}/{repo}"
         data = self._get(endpoint)
         return data.get("default_branch", "main")
 
     def get_repo_metadata(self, owner: str, repo: str) -> Dict[str, Any]:
-        """
-        Obtém metadados específicos de um repositório.
+        """Obtém metadados específicos de um repositório.
+
+        Args:
+            owner (str): O proprietário do repositório no GitHub.
+            repo (str): O nome do repositório no GitHub.
+
+        Returns:
+            Dict[str, Any]: Dicionário contendo estrelas, forks, linguagem, etc.
         """
         endpoint = f"/repos/{owner}/{repo}"
         data = self._get(endpoint)
@@ -78,9 +103,16 @@ class GitHubClient:
         }
 
     def download_repository(self, owner: str, repo: str, destination: str, branch: Optional[str] = None) -> None:
-        """
-        Baixa o código fonte do repositório em formato ZIP uitilizando stream
-        para economizar memória e extrai no destino especificado.
+        """Baixa o código fonte do repositório em formato ZIP uitilizando stream e extrai no destino.
+
+        Args:
+            owner (str): O proprietário do repositório no GitHub.
+            repo (str): O nome do repositório no GitHub.
+            destination (str): O caminho de destino para extração.
+            branch (Optional[str]): A branch específica a baixar. Se None, baixa a branch padrão.
+
+        Raises:
+            GitHubAPIError: Se ocorrer erro na requisição de download (status code diferente de 200).
         """
         if not branch:
             branch = self.get_default_branch(owner, repo)
@@ -106,8 +138,14 @@ class GitHubClient:
             Path(tmp_path).unlink(missing_ok=True)
 
     def get_branches(self, owner: str, repo: str) -> List[str]:
-        """
-        Retorna uma lista com os nomes de todas as branches do repositório.
+        """Retorna uma lista com os nomes de todas as branches do repositório.
+
+        Args:
+            owner (str): O proprietário do repositório.
+            repo (str): O nome do repositório.
+
+        Returns:
+            List[str]: Uma lista contendo os nomes das branches.
         """
         endpoint = f"/repos/{owner}/{repo}/branches"
         branches_data = self._get(endpoint)
@@ -121,9 +159,19 @@ class GitHubClient:
         since: Optional[str] = None,
         until: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
-        """
-        Obtém a lista de commits de um repositório, lidando com a paginação da API.
-        Retorna uma lista padronizada com sha, data, mensagem e autor.
+        """Obtém a lista de commits de um repositório, lidando com a paginação da API.
+
+        Args:
+            owner (str): O proprietário do repositório.
+            repo (str): O nome do repositório.
+            since (Optional[str]): Data inicial (ISO 8601).
+            until (Optional[str]): Data final (ISO 8601).
+
+        Returns:
+            List[Dict[str, Any]]: Uma lista de dicionários padronizados com sha, date, message e author.
+
+        Raises:
+            GitHubAPIError: Em caso de falha de conexão na API do GitHub ao buscar os commits.
         """
         url = f"{self.base_url}/repos/{owner}/{repo}/commits"
         params = {"per_page": 100}

@@ -7,9 +7,15 @@ from typing import Generator, List, Union
 
 
 def sanitize_repo_name(url: str) -> str:
-    """
-    Extrai o padrão 'owner/repo' de uma URL do GitHub.
+    """Extrai o padrão 'owner/repo' de uma URL do GitHub.
+
     Lida com prefixos 'https://' ou 'git@' e sufixos '.git'.
+
+    Args:
+        url (str): A URL do repositório no GitHub.
+
+    Returns:
+        str: O nome do repositório no formato 'owner/repo', ou a string original caso não dê match.
     """
 
     match = re.search(r'(?:https?://github\.com/|git@github\.com:)?([^/]+)/([^/]+?)(?:\.git)?/?$', url.strip())
@@ -21,27 +27,38 @@ def sanitize_repo_name(url: str) -> str:
 
 
 def ensure_dir(path: Union[str, Path]) -> None:
-    """
-    Cria diretórios recursivamente.
+    """Cria diretórios recursivamente.
+
     Equivalente ao 'mkdir -p' no terminal.
+
+    Args:
+        path (Union[str, Path]): O caminho do diretório a ser criado.
     """
     Path(path).mkdir(parents=True, exist_ok=True)
 
 
 @contextmanager
 def temp_dir() -> Generator[str, None, None]:
-    """
-    Context manager que cria um diretório temporário e o deleta
-    auitomaticamente após o uso.
+    """Context manager que cria um diretório temporário e o deleta automaticamente após o uso.
+
+    Yields:
+        str: O caminho do diretório temporário criado.
     """
     with tempfile.TemporaryDirectory() as tmpdir:
         yield tmpdir
 
 
 def find_files(directory: Union[str, Path], extensions: List[str]) -> List[Path]:
-    """
-    Varre um diretório recursivamente e retorna uma lista de caminhos
-    de arquivos filtrados pelas extensões fornecidas.
+    """Varre um diretório recursivamente e retorna caminhos de arquivos.
+
+    Filtra os arquivos pelas extensões fornecidas.
+
+    Args:
+        directory (Union[str, Path]): O diretório a ser varrido.
+        extensions (List[str]): Lista de extensões para filtro (ex: ['.py']).
+
+    Returns:
+        List[Path]: Lista contendo os caminhos encontrados.
     """
     directory = Path(directory)
     found_files = []

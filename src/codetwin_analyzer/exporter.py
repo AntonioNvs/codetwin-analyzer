@@ -50,16 +50,14 @@ class CloneExporter:
         data: Any,
         output_path: Optional[Union[str, Path]] = None,
     ) -> str:
-        """
-        Serializa dados (dataclasses, listas, dicts) para JSON.
+        """Serializa dados (dataclasses, listas, dicts) para JSON.
 
         Args:
-            data: Objeto a serializar — dataclass, lista ou dict.
-            output_path: Caminho do arquivo de saída (opcional).
-                         Se None, retorna apenas a string JSON.
+            data (Any): Objeto a serializar — dataclass, lista ou dict.
+            output_path (Optional[Union[str, Path]]): Caminho do arquivo de saída. Se None, retorna apenas a string JSON.
 
         Returns:
-            String JSON serializada.
+            str: String JSON serializada.
         """
         json_str = json.dumps(data, cls=CloneJSONEncoder, indent=2, ensure_ascii=False)
 
@@ -77,15 +75,13 @@ class CloneExporter:
         clone_pairs: List[ClonePair],
         output_path: Union[str, Path],
     ) -> None:
-        """
-        Exporta a lista de ClonePairs para CSV.
+        """Exporta a lista de ClonePairs para CSV.
 
-        Colunas: file_a, begin_line_a, end_line_a, file_b, begin_line_b,
-                 end_line_b, tokens, type.
+        Colunas: file_a, begin_line_a, end_line_a, file_b, begin_line_b, end_line_b, tokens, type.
 
         Args:
-            clone_pairs: Lista de pares de clones a exportar.
-            output_path: Caminho do arquivo CSV de saída.
+            clone_pairs (List[ClonePair]): Lista de pares de clones a exportar.
+            output_path (Union[str, Path]): Caminho do arquivo CSV de saída.
         """
         fieldnames = [
             "file_a", "begin_line_a", "end_line_a",
@@ -120,19 +116,16 @@ class CloneExporter:
         history: Optional[List[HistoryEntry]] = None,
         output_path: Optional[Union[str, Path]] = None,
     ) -> str:
-        """
-        Gera um relatório texto formatado em ASCII com:
-        (1) sumário de métricas, (2) tabela top-10 arquivos, (3) distribuição
-        por tipo, (4) seção de histórico se fornecida.
+        """Gera um relatório texto formatado em ASCII com as métricas e histórico.
 
         Args:
-            metrics: Objeto CloneMetrics com contagens gerais.
-            clone_pairs: Lista de pares de clones para calcular top arquivos.
-            history: Lista opcional de HistoryEntry para a seção de histórico.
-            output_path: Caminho do arquivo de saída (opcional).
+            metrics (CloneMetrics): Objeto CloneMetrics com contagens gerais.
+            clone_pairs (List[ClonePair]): Lista de pares de clones para calcular top arquivos.
+            history (Optional[List[HistoryEntry]]): Lista de HistoryEntry para a seção de histórico.
+            output_path (Optional[Union[str, Path]]): Caminho do arquivo de saída (opcional).
 
         Returns:
-            String do relatório gerado.
+            str: String do relatório gerado.
         """
         sep = "=" * 60
         lines: List[str] = []
@@ -212,12 +205,11 @@ class CloneExporter:
         metrics: CloneMetrics,
         output_path: Union[str, Path],
     ) -> None:
-        """
-        Exporta os campos de CloneMetrics para um CSV de uma única linha de dados.
+        """Exporta os campos de CloneMetrics para um CSV de uma única linha de dados.
 
         Args:
-            metrics: Objeto CloneMetrics a exportar.
-            output_path: Caminho do arquivo CSV de saída.
+            metrics (CloneMetrics): Objeto CloneMetrics a exportar.
+            output_path (Union[str, Path]): Caminho do arquivo CSV de saída.
         """
         fieldnames = [
             "total_clones", "type1_count", "type2_count",
@@ -246,24 +238,16 @@ class CloneExporter:
         history: Optional[List[HistoryEntry]] = None,
         output_path: Optional[Union[str, Path]] = None,
     ) -> str:
-        """
-        Gera um relatório HTML autocontido com CSS inline.
-
-        Conteúdo:
-        (1) tabela de sumário com CSS inline,
-        (2) lista dos top clones com snippets em <pre>,
-        (3) seção de timeline de histórico (se fornecida).
-
-        Sem dependências externas (sem JS, sem CDN CSS).
+        """Gera um relatório HTML autocontido com CSS inline.
 
         Args:
-            metrics: Objeto CloneMetrics com contagens gerais.
-            clone_pairs: Lista de pares de clones para exibir snippets.
-            history: Lista opcional de HistoryEntry para a seção de timeline.
-            output_path: Caminho do arquivo HTML de saída (opcional).
+            metrics (CloneMetrics): Objeto CloneMetrics com contagens gerais.
+            clone_pairs (List[ClonePair]): Lista de pares de clones para exibir snippets.
+            history (Optional[List[HistoryEntry]]): Lista de HistoryEntry para a seção de timeline.
+            output_path (Optional[Union[str, Path]]): Caminho do arquivo HTML de saída (opcional).
 
         Returns:
-            String HTML gerada.
+            str: String HTML gerada.
         """
         from codetwin_analyzer.metrics import most_cloned_files
         import html as html_lib
