@@ -80,3 +80,44 @@ class TestCPDRunner:
         assert "--language" in call_args
         lang_idx = call_args.index("--language")
         assert call_args[lang_idx + 1] == "python"
+
+    def test_detect_language_java(self, tmp_path: Path) -> None:
+        """detect_language retorna 'java' quando arquivos .java predominam."""
+        (tmp_path / "App.java").write_text("class App {}")
+        
+        runner = CPDRunner(pmd_path="/fake/pmd")
+        assert runner.detect_language(tmp_path) == "java"
+
+    def test_detect_language_javascript(self, tmp_path: Path) -> None:
+        """detect_language retorna 'javascript' quando arquivos .js predominam."""
+        (tmp_path / "script.js").write_text("console.log('test');")
+        
+        runner = CPDRunner(pmd_path="/fake/pmd")
+        assert runner.detect_language(tmp_path) == "javascript"
+
+    def test_detect_language_cpp(self, tmp_path: Path) -> None:
+        """detect_language retorna 'cpp' quando arquivos .cpp ou .c++ predominam."""
+        (tmp_path / "main.cpp").write_text("int main() {}")
+        (tmp_path / "utils.c++").write_text("void utils() {}")
+        
+        runner = CPDRunner(pmd_path="/fake/pmd")
+        assert runner.detect_language(tmp_path) == "cpp"
+
+    def test_detect_language_go(self, tmp_path: Path) -> None:
+        """detect_language retorna 'go' quando arquivos .go predominam."""
+        (tmp_path / "main.go").write_text("package main")
+        
+        runner = CPDRunner(pmd_path="/fake/pmd")
+        assert runner.detect_language(tmp_path) == "go"
+
+    def test_detect_language_unknown(self, tmp_path: Path) -> None:
+        """run_with_auto_detect levanta ValueError quando não detecta linguagem."""
+        (tmp_path / "unknown.xyz").write_text("data")
+        
+        runner = CPDRunner(pmd_path="/fake/pmd")
+        assert runner.detect_language(tmp_path) is None
+
+        with pytest.raises(ValueError) as exc_info:
+            runner.run_with_auto_detect(tmp_path, tmp_path / "out.xml")
+            
+        assert "Não foi possível detectar" in str(exc_info.value)
