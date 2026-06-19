@@ -21,6 +21,24 @@ logger = logging.getLogger("codetwin_analyzer")
 load_dotenv()
 
 
+class ColorFormatter(logging.Formatter):
+    """Formatter para adicionar cores ANSI baseadas no nível de log."""
+    COLORS = {
+        logging.DEBUG: "\033[36m",      # Cyan
+        logging.INFO: "\033[34m",       # Azul
+        logging.WARNING: "\033[33m",    # Amarelo
+        logging.ERROR: "\033[31m",      # Vermelho
+        logging.CRITICAL: "\033[1;31m", # Vermelho Negrito
+    }
+    RESET = "\033[0m"
+
+    def format(self, record):
+        # Evita modificar o record original se houver múltiplos handlers
+        msg = super().format(record)
+        color = self.COLORS.get(record.levelno, self.RESET)
+        return f"{color}{msg}{self.RESET}"
+
+
 def setup_logging(verbose: bool, quiet: bool):
     """Configura os handlers de log para o console e para o arquivo."""
     if logger.hasHandlers():
@@ -33,7 +51,7 @@ def setup_logging(verbose: bool, quiet: bool):
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(file_formatter)
 
-    console_formatter = logging.Formatter('%(message)s')
+    console_formatter = ColorFormatter('%(message)s')
     console_handler = logging.StreamHandler(sys.stdout)
 
     if quiet:
@@ -52,35 +70,40 @@ def setup_logging(verbose: bool, quiet: bool):
 class CodeTwinCLI:
     """Interface de Linha de Comando (CLI) para o CodeTwin Analyzer."""
 
-    def __init__(self, verbose: bool = False, quiet: bool = False):
+    def __init__(self, verbose: bool = False, quiet: bool = False, progress: bool = False):
         """
         Inicializa a CLI e configura o nível de verbosidade dos logs.
 
         Args:
             verbose: Ativa logs detalhados de depuração (DEBUG) no console.
             quiet: Suprime mensagens informativas, mostrando apenas avisos/erros (WARNING).
+            progress: Exibe o progresso das etapas (1/5, etc.) nos comandos.
         """
         setup_logging(verbose, quiet)
-        logger.debug("CodeTwin CLI instanciada (verbose=%s, quiet=%s)", verbose, quiet)
+        self.progress = progress
+        logger.debug("CodeTwin CLI instanciada (verbose=%s, quiet=%s, progress=%s)", verbose, quiet, progress)
+
+    def _get_step_prefix(self, step: int, total: int = 5) -> str:
+        return f"[{step}/{total}] " if self.progress else ""
 
     def _handle_common_exceptions(self, exc: Exception):
         """Método auxiliar para centralizar as mensagens de erro amigáveis."""
         if isinstance(exc, GitHubAPIError):
-            logger.error(f"Erro na API do GitHub: {exc}")
+            logger.error(f"Erro na API do GitHub: {exc}\n  -> Sugestão: Verifique se o repositório existe e se o seu GITHUB_TOKEN (se aplicável) tem permissão de leitura.")
         elif isinstance(exc, SEARTAPIError):
-            logger.error(f"Erro na API do SEART: {exc}")
+            logger.error(f"Erro na API do SEART: {exc}\n  -> Sugestão: A API pode estar instável. Aguarde alguns instantes e tente novamente com os mesmos ou outros filtros.")
         elif isinstance(exc, CPDExecutionError):
-            logger.error(f"Falha ao executar o PMD CPD:\n{exc}")
+            logger.error(f"Falha ao executar o PMD CPD:\n{exc}\n  -> Sugestão: Certifique-se de que o PMD está instalado, acessível no PATH do sistema, e de que é a versão suportada.")
         elif isinstance(exc, requests.exceptions.ConnectionError):
-            logger.error("Erro de Conexão: Não foi possível acessar a internet. Verifique sua rede.")
+            logger.error("Erro de Conexão: Não foi possível acessar a internet.\n  -> Sugestão: Verifique sua conexão com a rede ou configurações de proxy.")
         elif isinstance(exc, requests.exceptions.Timeout):
-            logger.error("Timeout: O servidor demorou muito para responder. Tente novamente mais tarde.")
+            logger.error("Timeout: O servidor demorou muito para responder.\n  -> Sugestão: Tente novamente mais tarde ou verifique a estabilidade da sua internet.")
         elif isinstance(exc, FileNotFoundError):
-            logger.error(f"Arquivo ou dependência não encontrada: {exc}")
+            logger.error(f"Arquivo ou dependência não encontrada: {exc}\n  -> Sugestão: Verifique se o arquivo especificado existe e se os caminhos estão corretos.")
         elif isinstance(exc, ValueError):
-            logger.error(f"Erro de validação: {exc}")
+            logger.error(f"Erro de validação: {exc}\n  -> Sugestão: Verifique os parâmetros passados para o comando e tente novamente.")
         else:
-            logger.exception(f"Erro inesperado: {exc}")
+            logger.exception(f"Erro inesperado: {exc}\n  -> Sugestão: Se o erro persistir, abra uma issue no repositório do CodeTwin Analyzer relatando o ocorrido.")
 
         sys.exit(1)
 
@@ -389,7 +412,7 @@ class CodeTwinCLI:
 
             with temp_dir() as tmpdir:
                 try:
-                    logger.info("[1/5] Baixando código-fonte...")
+                    logger.info(f"{self._get_step_prefix(1, 5)}Baixando código-fonte...")
                     github_client.download_repository(owner, repo, destination=tmpdir)
                     status["download"] = "Sucesso"
                 except Exception as e:
@@ -397,7 +420,7 @@ class CodeTwinCLI:
 
                 if status["download"] == "Sucesso":
                     try:
-                        logger.info("[2/5] Detectando linguagem e executando PMD CPD...")
+                        logger.info(f"{self._get_step_prefix(2, 5)}Detectando linguagem e executando PMD CPD...")
                         cpd_runner.run_with_auto_detect(tmpdir, xml_output, min_tokens)
                         status["cpd"] = "Sucesso"
                     except Exception as e:
@@ -407,7 +430,7 @@ class CodeTwinCLI:
 
                 if status["cpd"] == "Sucesso":
                     try:
-                        logger.info("[3/5] Processando resultados do CPD...")
+                        logger.info(f"{self._get_step_prefix(3, 5)}Processando resultados do CPD...")
                         fragments = parse_cpd_xml(xml_output)
                         if fragments:
                             pairs = group_into_pairs(fragments)
@@ -419,7 +442,7 @@ class CodeTwinCLI:
 
                 if status["parse"] == "Sucesso":
                     try:
-                        logger.info("[4/5] Calculando métricas...")
+                        logger.info(f"{self._get_step_prefix(4, 5)}Calculando métricas...")
                         if pairs:
                             metrics = compute_clone_counts(pairs)
                         status["metrics"] = "Sucesso"
@@ -430,7 +453,7 @@ class CodeTwinCLI:
 
             if with_history:
                 try:
-                    logger.info("[5/5] Rastreando histórico de clones...")
+                    logger.info(f"{self._get_step_prefix(5, 5)}Rastreando histórico de clones...")
                     clone_history = CloneHistory(github_client)
                     hist_entries = clone_history.track_default_branch_history(
                         owner, repo, depth=20, min_tokens=min_tokens
@@ -439,7 +462,7 @@ class CodeTwinCLI:
                 except Exception as e:
                     status["history"] = f"Falha ({e})"
             else:
-                logger.info("[5/5] Histórico ignorado (with_history=False).")
+                logger.info(f"{self._get_step_prefix(5, 5)}Histórico ignorado (with_history=False).")
 
             try:
                 logger.info("Exportando relatório final...")
