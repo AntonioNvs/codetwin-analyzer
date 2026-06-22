@@ -10,3 +10,5 @@ htmlcov/
 .claude/
 .env
 *.xml
+
+codetwin.log
