@@ -1,5 +1,6 @@
 import time
 import requests
+import urllib3
 
 from typing import List, Optional
 
@@ -10,14 +11,25 @@ class SEARTAPIError(Exception):
 
 
 class SEARTClient:
-    def __init__(self):
-        """Inicializa o cliente da API SEART GitHub Search (GHS)."""
+    def __init__(self, verify_ssl: bool = True):
+        """Inicializa o cliente da API SEART GitHub Search (GHS).
+
+        Args:
+            verify_ssl (bool): Se True, verifica o certificado SSL do servidor.
+                              Se False, desabilita a verificação (útil se o servidor
+                              tiver problemas de certificado). Default é True.
+        """
         self.base_url = "https://seart-ghs.si.usi.ch/api"
+        self.verify_ssl = verify_ssl
         self.session = requests.Session()
 
         self.session.headers.update({
             "Accept": "application/json",
         })
+
+        # Suprime avisos de SSL quando a verificação está desabilitada
+        if not verify_ssl:
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
     def search_repositories(
         self,
@@ -68,10 +80,13 @@ class SEARTClient:
             params["license"] = license_filter
 
         max_retries = 3
+        ssl_fallback_attempted = False
 
         for attempt in range(max_retries):
             try:
-                response = self.session.get(endpoint, params=params, timeout=30)
+                response = self.session.get(
+                    endpoint, params=params, timeout=30, verify=self.verify_ssl
+                )
 
                 if response.status_code == 200:
                     break
@@ -84,6 +99,18 @@ class SEARTClient:
 
                 elif 500 <= response.status_code < 600:
                     error_msg = f"Erro no servidor SEART (Status {response.status_code})."
+
+            except requests.exceptions.SSLError as e:
+                # Fallback automático: servidor com certificado inválido.
+                # Desabilita verificação SSL e tenta novamente.
+                if not ssl_fallback_attempted:
+                    self.verify_ssl = False
+                    ssl_fallback_attempted = True
+                    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+                    # Não conta como tentativa — refaz imediatamente
+                    continue
+                else:
+                    error_msg = f"Falha de SSL ao SEART (já com fallback): {str(e)}"
 
             except requests.exceptions.RequestException as e:
                 error_msg = f"Falha de conexão ao SEART: {str(e)}"

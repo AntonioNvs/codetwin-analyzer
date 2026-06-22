@@ -23,6 +23,19 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: Install PMD (required by integration tests)
+        run: |
+          PMD_VERSION="7.0.0"
+          PMD_URL="https://github.com/pmd/pmd/releases/download/pmd_releases%2F${PMD_VERSION}/pmd-dist-${PMD_VERSION}-bin.zip"
+          curl -sL "$PMD_URL" -o /tmp/pmd.zip
+          unzip -q /tmp/pmd.zip -d /tmp/pmd
+          # The extracted dir is pmd-bin-7.0.0
+          PMD_BIN_DIR="/tmp/pmd/pmd-bin-${PMD_VERSION}/bin"
+          chmod +x "$PMD_BIN_DIR/pmd" 2>/dev/null || true
+          echo "$PMD_BIN_DIR" >> "$GITHUB_PATH"
+          echo "PMD installed at: $PMD_BIN_DIR"
+          pmd --version || echo "PMD binary found but --version check skipped"
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip

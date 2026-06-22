@@ -1,14 +1,53 @@
 import pytest
 import json
+import shutil
+import requests
 from pathlib import Path
 from codetwin_analyzer.cli import CodeTwinCLI
 
 # Marca todos os testes deste arquivo como de integração
 pytestmark = pytest.mark.integration
 
+
+def _pmd_available() -> bool:
+    """Verifica se o executável PMD está disponível no sistema."""
+    return shutil.which("pmd") is not None
+
+
+def _seart_reachable() -> bool:
+    """Verifica se a API SEART está acessível e funcional (conexão + SSL ok, sem 5xx)."""
+    for verify in (True, False):
+        try:
+            r = requests.get(
+                "https://seart-ghs.si.usi.ch/api/v1/search/repositories",
+                params={"language": "python", "starsMin": 0, "size": 1},
+                timeout=10,
+                verify=verify,
+            )
+            # Servidor reachable e funcional: respondeu sem erro 5xx
+            return r.status_code < 500
+        except requests.exceptions.SSLError:
+            # Tenta o próximo modo de verificação
+            continue
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+            return False
+    return False
+
+
+pmd_required = pytest.mark.skipif(
+    not _pmd_available(),
+    reason="PMD não está instalado no sistema. Instale o PMD para rodar testes de integração."
+)
+
+seart_required = pytest.mark.skipif(
+    not _seart_reachable(),
+    reason="API SEART não está acessível (erro de SSL ou conexão). Teste ignorado."
+)
+
 class TestEndToEnd:
     """Testes de integração fim-a-fim para a CLI do CodeTwin Analyzer."""
 
+    @pmd_required
     def test_full_pipeline_small_repo(self, capsys) -> None:
         """baixa repo público pequeno real, roda pipeline completo, verifica saída."""
         cli = CodeTwinCLI(quiet=True)
@@ -24,10 +63,11 @@ class TestEndToEnd:
             if e.code != 0:
                 pytest.fail(f"Pipeline abortou com exit code {e.code}")
 
-        out, err = capsys.readouterr()
+        _out, err = capsys.readouterr()
         # O pipeline deve terminar com sucesso sem dar exceções não tratadas
         assert "CodeTwin" not in err.lower() or "error" not in err.lower()
 
+    @pmd_required
     def test_json_export_roundtrip(self, tmp_path: Path) -> None:
         """exporta JSON, verifica parse reverso."""
         cli = CodeTwinCLI(quiet=True)
@@ -50,6 +90,8 @@ class TestEndToEnd:
         assert "metrics" in data
         assert "history" in data
 
+    @pmd_required
+    @seart_required
     def test_search_and_analyze(self) -> None:
         """busca SEART + análise de 1 repo."""
         cli = CodeTwinCLI(quiet=True)
