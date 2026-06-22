@@ -5,7 +5,7 @@ from typing import List, Tuple, Dict, Any
 from collections import Counter
 from dataclasses import dataclass
 
-from src.codetwin_analyzer.parser import ClonePair, classify_clone_type
+from codetwin_analyzer.parser import ClonePair, classify_clone_type
 
 
 @dataclass
