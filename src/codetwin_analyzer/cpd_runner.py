@@ -14,7 +14,7 @@ class CPDExecutionError(Exception):
 class CPDRunner:
     def __init__(self, pmd_path: Optional[str] = None):
         """Inicializa o runner do PMD CPD.
-        
+
         Se o caminho para o PMD não for fornecido, tenta localizá-lo no PATH do sistema.
 
         Args:

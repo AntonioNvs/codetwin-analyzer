@@ -54,7 +54,8 @@ class CloneExporter:
 
         Args:
             data (Any): Objeto a serializar — dataclass, lista ou dict.
-            output_path (Optional[Union[str, Path]]): Caminho do arquivo de saída. Se None, retorna apenas a string JSON.
+            output_path (Optional[Union[str, Path]]): Caminho do arquivo de saída.
+                Se None, retorna apenas a string JSON.
 
         Returns:
             str: String JSON serializada.

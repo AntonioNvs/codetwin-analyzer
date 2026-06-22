@@ -35,8 +35,8 @@ class GitHubClient:
             })
 
     def _get(self, url: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Faz uma requisição GET. 
-        
+        """Faz uma requisição GET.
+
         Se a URL for um caminho relativo (ex: /repos/...), concatena com a base_url.
 
         Args:

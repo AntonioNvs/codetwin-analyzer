@@ -71,7 +71,7 @@ def compute_clone_counts(clone_pairs: List[ClonePair]) -> CloneMetrics:
 
 def most_cloned_files(clone_pairs: List[ClonePair], top_n: int = 10) -> List[Tuple[str, int]]:
     """Conta quantos blocos clonados únicos cada arquivo possui.
-    
+
     Deduplica por (source_file, begin_line, end_line) para evitar
     inflação quando um fragmento aparece em múltiplos pares do mesmo grupo.
 
@@ -148,7 +148,7 @@ def clone_density(clone_pairs: List[ClonePair], total_lines: int) -> float:
 
 def statistical_summary(clone_pairs: List[ClonePair]) -> Dict[str, Any]:
     """Calcula estatísticas descritivas dos tamanhos (em linhas) dos clones detectados.
-    
+
     Retorna um dicionário com média, mediana, desvio padrão, mínimo, máximo,
     total de arquivos únicos e razões por tipo. Trata lista vazia retornando zeros em todos os campos numéricos.
 
@@ -205,7 +205,7 @@ def statistical_summary(clone_pairs: List[ClonePair]) -> Dict[str, Any]:
 
 def inter_file_similarity(clone_pairs: List[ClonePair]) -> Dict[str, Dict[str, float]]:
     """Calcula um score de similaridade entre pares de arquivos.
-    
+
     Para cada par (A, B): score = (2 * linhas_duplicadas_AB) / (total_linhas_A + total_linhas_B).
 
     Args:
@@ -239,7 +239,7 @@ def inter_file_similarity(clone_pairs: List[ClonePair]) -> Dict[str, Dict[str, f
 
 def token_overlap_matrix(clone_pairs: List[ClonePair]) -> Dict[str, Dict[str, float]]:
     """Calcula a similaridade de Jaccard entre os conjuntos de tokens de cada par de arquivos.
-    
+
     Jaccard(A, B) = |A ∩ B| / |A ∪ B|. Os tokens são extraídos dos code_snippets de cada fragmento.
 
     Args:
@@ -276,7 +276,7 @@ def repository_clone_index(
     total_lines: int,
 ) -> float:
     """Calcula um índice único (0 a 1) que representa o grau geral de clonagem do repositório.
-    
+
     Combina a densidade de linhas duplicadas com a proporção de arquivos afetados.
 
     Args:
@@ -326,7 +326,7 @@ def file_level_clone_matrix(clone_pairs: List[ClonePair]) -> Dict[str, Dict[str,
 
 def clone_coverage_per_file(clone_pairs: List[ClonePair]) -> Dict[str, float]:
     """Calcula a porcentagem de linhas duplicadas por arquivo.
-    
+
     Usa o maior end_line observado como proxy do tamanho do arquivo.
 
     Args:
@@ -364,7 +364,8 @@ def top_clone_files_by_type(
         top_n (int, optional): Tamanho do ranking para cada tipo. Default é 10.
 
     Returns:
-        Dict[str, List[Tuple[str, int]]]: Dict no formato {"Tipo 1": [(arquivo, contagem), ...], "Tipo 2": [(arquivo, contagem), ...]}.
+        Dict[str, List[Tuple[str, int]]]: Dict no formato
+            {"Tipo 1": [(arquivo, contagem), ...], "Tipo 2": [(arquivo, contagem), ...]}.
     """
     counters: Dict[str, Counter] = {"Tipo 1": Counter(), "Tipo 2": Counter()}
 

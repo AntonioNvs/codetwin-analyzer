@@ -28,7 +28,7 @@ class ColorFormatter(logging.Formatter):
         logging.INFO: "\033[34m",       # Azul
         logging.WARNING: "\033[33m",    # Amarelo
         logging.ERROR: "\033[31m",      # Vermelho
-        logging.CRITICAL: "\033[1;31m", # Vermelho Negrito
+        logging.CRITICAL: "\033[1;31m",  # Vermelho Negrito
     }
     RESET = "\033[0m"
 
@@ -97,21 +97,50 @@ class CodeTwinCLI:
             exc (Exception): A exceção levantada durante a execução da CLI.
         """
         if isinstance(exc, GitHubAPIError):
-            logger.error(f"Erro na API do GitHub: {exc}\n  -> Sugestão: Verifique se o repositório existe e se o seu GITHUB_TOKEN (se aplicável) tem permissão de leitura.")
+            logger.error(
+                f"Erro na API do GitHub: {exc}\n"
+                "  -> Sugestão: Verifique se o repositório existe e se o seu "
+                "GITHUB_TOKEN (se aplicável) tem permissão de leitura."
+            )
         elif isinstance(exc, SEARTAPIError):
-            logger.error(f"Erro na API do SEART: {exc}\n  -> Sugestão: A API pode estar instável. Aguarde alguns instantes e tente novamente com os mesmos ou outros filtros.")
+            logger.error(
+                f"Erro na API do SEART: {exc}\n"
+                "  -> Sugestão: A API pode estar instável. Aguarde alguns instantes "
+                "e tente novamente com os mesmos ou outros filtros."
+            )
         elif isinstance(exc, CPDExecutionError):
-            logger.error(f"Falha ao executar o PMD CPD:\n{exc}\n  -> Sugestão: Certifique-se de que o PMD está instalado, acessível no PATH do sistema, e de que é a versão suportada.")
+            logger.error(
+                f"Falha ao executar o PMD CPD:\n{exc}\n"
+                "  -> Sugestão: Certifique-se de que o PMD está instalado, "
+                "acessível no PATH do sistema, e de que é a versão suportada."
+            )
         elif isinstance(exc, requests.exceptions.ConnectionError):
-            logger.error("Erro de Conexão: Não foi possível acessar a internet.\n  -> Sugestão: Verifique sua conexão com a rede ou configurações de proxy.")
+            logger.error(
+                "Erro de Conexão: Não foi possível acessar a internet.\n"
+                "  -> Sugestão: Verifique sua conexão com a rede ou configurações de proxy."
+            )
         elif isinstance(exc, requests.exceptions.Timeout):
-            logger.error("Timeout: O servidor demorou muito para responder.\n  -> Sugestão: Tente novamente mais tarde ou verifique a estabilidade da sua internet.")
+            logger.error(
+                "Timeout: O servidor demorou muito para responder.\n"
+                "  -> Sugestão: Tente novamente mais tarde ou verifique a estabilidade da sua internet."
+            )
         elif isinstance(exc, FileNotFoundError):
-            logger.error(f"Arquivo ou dependência não encontrada: {exc}\n  -> Sugestão: Verifique se o arquivo especificado existe e se os caminhos estão corretos.")
+            logger.error(
+                f"Arquivo ou dependência não encontrada: {exc}\n"
+                "  -> Sugestão: Verifique se o arquivo especificado existe e se "
+                "os caminhos estão corretos."
+            )
         elif isinstance(exc, ValueError):
-            logger.error(f"Erro de validação: {exc}\n  -> Sugestão: Verifique os parâmetros passados para o comando e tente novamente.")
+            logger.error(
+                f"Erro de validação: {exc}\n"
+                "  -> Sugestão: Verifique os parâmetros passados para o comando e tente novamente."
+            )
         else:
-            logger.exception(f"Erro inesperado: {exc}\n  -> Sugestão: Se o erro persistir, abra uma issue no repositório do CodeTwin Analyzer relatando o ocorrido.")
+            logger.exception(
+                f"Erro inesperado: {exc}\n"
+                "  -> Sugestão: Se o erro persistir, abra uma issue no repositório "
+                "do CodeTwin Analyzer relatando o ocorrido."
+            )
 
         sys.exit(1)
 
@@ -439,7 +468,7 @@ class CodeTwinCLI:
         metrics = None
         pairs = []
         hist_entries = None
-        
+
         status = {
             "download": "Pendente",
             "cpd": "Pendente",
