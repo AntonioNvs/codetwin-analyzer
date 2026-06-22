@@ -1,12 +1,13 @@
 import pytest
 
+from typing import Optional
 from unittest.mock import MagicMock
 from codetwin_analyzer.seart_client import SEARTClient, SEARTAPIError
 
 pytestmark = pytest.mark.unit
 
 
-def _make_mock_response(status_code: int, json_data: dict | None = None, text: str = "") -> MagicMock:
+def _make_mock_response(status_code: int, json_data: Optional[dict] = None, text: str = "") -> MagicMock:
     """Helper: cria um MagicMock simulando uma requests.Response."""
     mock_resp = MagicMock()
     mock_resp.status_code = status_code
